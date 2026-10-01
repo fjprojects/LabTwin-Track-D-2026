@@ -1,0 +1,17 @@
+.git
+.gitignore
+.env
+.env.*
+venv/
+frontend/
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.log
+backend/db.sqlite3
+backend/student_sessions/
+backend/syllabus_state.json
+backend/student_memory.json
+backend/syllabus_analysis_cache.json
+*_backup_*/
+*before-*

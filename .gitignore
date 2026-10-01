@@ -1,0 +1,24 @@
+.env
+venv/
+.venv*/
+.deepeval/
+__pycache__/
+.ipynb_checkpoints/
+syllabus_analysis_cache.json
+student_sessions/
+syllabus_state.json
+student_memory.json
+*_backup_*/
+frontend/src/App.before-*.jsx
+frontend/src/App.before-*.css
+*.pyc
+
+frontend/node_modules/
+frontend/dist/
+backend/db.sqlite3
+.vercel/
+backend/private_learning/
+backend/learning_vectors/
+
+# Generated from the pinned MediaPipe dependency during dev/build.
+frontend/public/camera/wasm/

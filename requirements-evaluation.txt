@@ -1,0 +1,4 @@
+# Use a separate virtual environment: DeepEval 4 and the existing Chroma/CrewAI
+# require different posthog versions. Do not replace the application's runtime.
+deepeval==4.2.7
+groq>=1.0,<2

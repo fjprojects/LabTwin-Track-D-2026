@@ -10,5 +10,6 @@ USE_TZ = True
 AUTH_PASSWORD_VALIDATORS = [{"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"}]
 LABTWIN_EMBEDDING_BACKEND = "hash"
 LABTWIN_PROCESS_INLINE = True
+LABTWIN_PROCESS_MODE = "external"
 LABTWIN_DEMO_ENABLED = True
 LABTWIN_DISABLE_REMOTE_AI = True

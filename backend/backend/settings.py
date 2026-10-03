@@ -171,6 +171,9 @@ LABTWIN_EVALUATION_JUDGE_MODEL = os.getenv("LABTWIN_EVALUATION_JUDGE_MODEL", "")
 LABTWIN_PROJECT_ROOT = Path(os.getenv("LABTWIN_PROJECT_ROOT", str(BASE_DIR.parent)))
 LABTWIN_TRANSCRIPTION_MODEL = os.getenv("LABTWIN_TRANSCRIPTION_MODEL", "whisper-large-v3-turbo")
 LABTWIN_PROCESS_INLINE = os.getenv("LABTWIN_PROCESS_INLINE", "false").lower() == "true"
+# Local uploads start automatically. Hosting can retain dedicated workers.
+LABTWIN_PROCESS_MODE = os.getenv("LABTWIN_PROCESS_MODE", "local" if DEBUG else "external")
+LABTWIN_MATERIAL_TIMEOUT_SECONDS = int(os.getenv("LABTWIN_MATERIAL_TIMEOUT_SECONDS", "600"))
 LABTWIN_DEMO_ENABLED = os.getenv("LABTWIN_DEMO_ENABLED", "false").lower() == "true"
 LABTWIN_UPLOAD_MAX_BYTES = int(os.getenv("LABTWIN_UPLOAD_MAX_BYTES", str(100 * 1024 * 1024)))
 LABTWIN_MEDIA_MAX_SECONDS = int(os.getenv("LABTWIN_MEDIA_MAX_SECONDS", "7200"))

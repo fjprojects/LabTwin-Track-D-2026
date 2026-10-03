@@ -1,7 +1,9 @@
 import axios from "axios";
 
 export const API = (import.meta.env.VITE_API_URL || "http://127.0.0.1:8000/api").replace(/\/$/, "");
-const client = axios.create();
+// A stalled connection must return control to the interface. A client timeout
+// does not cancel server work; refresh its state before repeating a mutation.
+const client = axios.create({ timeout: 120000 });
 client.interceptors.request.use(config => {
   const token = sessionStorage.getItem("labtwin_access_token");
   if (token && config.url?.startsWith(`${API}/`)) config.headers.Authorization = `Bearer ${token}`;

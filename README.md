@@ -95,6 +95,8 @@ For correctness fraction `f` and reliability `r`, the known likelihood is `((1-s
 
 Reliability is `[1, .85, .65, .45]` for hint levels 0–3, multiplied by `max(.35, .9^(attempt-1))` and by `.4` for provisional/unverified evidence. This is a documented extension for partial grades, repeated attempts and assisted answers, not a fitted psychological model. Parameters and likelihood assumptions need calibration with real students.
 
+Current BKT parameters are prototype parameters and have not been population-calibrated. Future calibrated parameters can use the existing per-topic `CourseTopic.learner_parameters` configuration; no BKT equations were changed by the hardening work. Simulated learner evaluations are not real human studies.
+
 Opening a resource or asking a question records engagement without increasing knowledge. A verified **Check my understanding** question makes a conversation observable assessment evidence. Cold-start students see Not Started and a diagnostic offer. Strong ≥80, Developing ≥50, Needs Practice <50; without scored observations, Not Started.
 
 Tutor guidance changes between foundation, guided and advanced styles. Practice checks weak prerequisites, recent mistakes and available verified difficulty. “Why am I getting this question?” uses actual evidence and source recommendations. Source-supported question scarcity is disclosed rather than relabelling an easy question as difficult.
@@ -167,6 +169,7 @@ Copy [.env.example](.env.example). Main variables:
 |---|---|
 | `GROQ_API_KEY`, `DJANGO_SECRET_KEY`, `FRONTEND_URL` | Provider credentials, Django signing, allowed frontend origin |
 | `LABTWIN_TUTOR_MODEL`, `LABTWIN_TRANSCRIPTION_MODEL` | Grounded tutor and timestamped speech model |
+| `LABTWIN_LEGACY_AI_TIMEOUT_SECONDS` | Original programming AI provider-call deadline; default 45 seconds, bounded to 5–120. Existing rate-limit retries remain bounded; implicit LiteLLM retries are disabled |
 | `LABTWIN_VISION_MODEL`, `LABTWIN_VERIFIER_MODEL` | Optional actual-pixel figure interpretation and independent question verification |
 | `LABTWIN_EVALUATOR_PYTHON`, `LABTWIN_EVALUATION_JUDGE_MODEL` | Separate DeepEval interpreter and optional semantic judge |
 | `LABTWIN_EMBEDDING_BACKEND` | `onnx` for neural retrieval or explicit offline `hash` |
@@ -226,14 +229,35 @@ With both environments installed, from the project root:
 ```bash
 export LABTWIN_TEST_EVALUATOR_PYTHON="$PWD/.venv-evaluation/bin/python"
 cd backend
-python manage.py test labtwin.test_response_history labtwin.test_classrooms labtwin.test_assessments labtwin.test_learning labtwin.test_track_d labtwin.test_assessment_camera labtwin.test_material_processing labtwin.test_learning_migrations --settings=backend.test_settings
+python manage.py test labtwin --settings=backend.test_settings
 python manage.py check
 python manage.py makemigrations --check --dry-run
 ```
 
 From the project root, also run `python scripts/check_background_uploads.py`. It uses a disposable persistent database and the normal application routes to exercise real child-process PDF/PPTX/video ingestion, scanned PDF OCR, corrupted upload handling, source isolation, citations, programming/hints/retry, mastery, adaptive follow-up, viva and reports. With `LABTWIN_TEST_EVALUATOR_PYTHON` set, it additionally executes a real background DeepEval run. It explicitly uses offline hash embeddings and disables remote AI; it does not claim provider quality. Tesseract, ffmpeg and GCC are required for this integration check.
 
-From `frontend`: `npm run test:camera`, `npm run build` and `npm run lint`. The predev/prebuild script prepares self-hosted camera WASM assets; the official Face Landmarker model is bundled. Browser checks are documented in [demo guide](docs/DEMO_GUIDE.md); they use a disposable local database, not production data. No failing tests are disabled. [Validation record](docs/VALIDATION.md) records the release checks and environment limits.
+From `frontend`: `npm run test:camera`, `npm run test:api`, `npm run build` and `npm run lint`. The API checks load the actual Vite modules in SSR mode; they do not certify browser rendering or camera hardware. The predev/prebuild script prepares self-hosted camera WASM assets; the official Face Landmarker model is bundled. Browser checks are documented in [demo guide](docs/DEMO_GUIDE.md); they use a disposable local database, not production data. No failing tests are disabled. [Validation record](docs/VALIDATION.md) records the release checks and environment limits.
+
+To include a real PDF, all three language runners, and saved measured evidence in the disposable integration check:
+
+```bash
+LABTWIN_TEST_EVALUATOR_PYTHON="$PWD/.venv-evaluation/bin/python" \
+  .venv/bin/python scripts/check_background_uploads.py \
+  --record-pdf '/path/to/Record(1).pdf' --all-languages \
+  --results /path/to/acceptance-results.json
+```
+
+This verifies API source access and original file bytes, not actual citation clicks. Use a full JDK (`javac` and `java`) for Java. The JSON records actual saved evaluation results, controlled learner evidence, and execution outcomes; it contains no production student data.
+
+The current practical acceptance status and outstanding real-browser checks are recorded in [LabTwin-Final-Hardening-Acceptance.md](LabTwin-Final-Hardening-Acceptance.md).
+
+## Recoverable failure behaviour
+
+Native PDF text is tried first. Image-heavy pages containing only short headers also require OCR. Missing/failed required OCR terminates with a retained upload and setup guidance; it never marks headers alone as sufficient teaching content. Optional figure OCR failures keep native text, image pixels and source locations, with warnings. Unanalysed raster images are preserved without invented searchable descriptions. Configured vision failures retain native geometry/OCR provenance and display a warning.
+
+Lecture ingestion prefers reliable embedded captions before speech transcription. ffmpeg, OCR, vision, transcription and tutoring calls have finite deadlines; extraction jobs also have a hard deadline and recoverable leases. Groq calls use at most one SDK retry. Missing speech configuration or transcription failure produces a retryable failed upload, retaining the original media. There is no silent provider switch.
+
+The frontend API client returns control after 120 seconds. A client timeout cannot cancel server work: refresh to inspect the saved state before repeating an upload, assessment submission or other mutation. Legacy AI errors return safe messages and log exception types instead of private provider responses. No answer keys, hidden tests, raw camera frames or misconduct judgments are added by these changes.
 
 ## Security and limitations
 

@@ -6,6 +6,8 @@ import subprocess
 import tempfile
 import zipfile
 import math
+import logging
+import re
 from pathlib import Path
 from django.conf import settings
 
@@ -13,6 +15,7 @@ from .access import LearningError
 from .transcription import media_info, transcribe, validate_transcript
 
 KINDS = {".pdf": "pdf", ".pptx": "slides", ".ppt": "slides", ".txt": "text", ".md": "text", ".mp4": "video", ".webm": "video", ".mov": "video", ".mkv": "video", ".mp3": "audio", ".wav": "audio", ".m4a": "audio", ".ogg": "audio", ".flac": "audio"}
+logger = logging.getLogger(__name__)
 
 
 def image_text(blob):
@@ -23,6 +26,17 @@ def image_text(blob):
         path.write_bytes(blob)
         result = subprocess.run(["tesseract", str(path), "stdout"], capture_output=True, timeout=30, check=True)
         return result.stdout.decode("utf-8", errors="replace").strip()
+
+
+def safe_image_text(blob, warnings, location):
+    """An optional figure OCR failure must not discard native teaching text."""
+    try:
+        return image_text(blob)
+    except (subprocess.SubprocessError, OSError) as error:
+        warnings.append(f"{location}: OCR was unavailable; the image and any native text are retained.")
+        # Do not log parser/provider messages, source contents, or local paths.
+        logger.warning("Optional image OCR unavailable (%s)", type(error).__name__)
+        return ""
 
 
 def video_frames(path, duration):
@@ -73,7 +87,11 @@ def pdf_units(path, progress=None):
             if progress:
                 progress("pdf_text", number - 1, len(reader.pages), "pages")
             text = (page.extract_text() or "").strip()
-            if not text and shutil.which("tesseract"):
+            # Native headers such as 'Program: Output:' are not the scanned
+            # teaching content. Keep them, but do not mistake them for OCR.
+            needs_ocr = not text or (len(re.findall(r"\w+", text)) < 8 and bool(len(page.images)))
+            ocr_complete = False
+            if needs_ocr and shutil.which("tesseract"):
                 if progress:
                     progress("pdf_ocr", number - 1, len(reader.pages), "pages")
                 # PyMuPDF is already a project dependency. Rendering here also
@@ -84,9 +102,16 @@ def pdf_units(path, progress=None):
                         document.authenticate("")
                     scanned_page = document[number - 1]
                     scale = min(3, 1800 / max(scanned_page.rect.width, scanned_page.rect.height))
-                    text = image_text(scanned_page.get_pixmap(matrix=fitz.Matrix(scale, scale), alpha=False).tobytes("png"))
+                    recognised = safe_image_text(scanned_page.get_pixmap(matrix=fitz.Matrix(scale, scale), alpha=False).tobytes("png"), warnings, f"Page {number}")
+                    if recognised:
+                        text, ocr_complete = recognised, True
+            elif needs_ocr:
+                logger.warning("Scanned PDF page needs OCR; Tesseract is unavailable on this deployment")
             if text:
-                units.append({"number": number, "page_number": number, "text": text})
+                units.append({"number": number, "page_number": number, "text": text,
+                              "layout": {"origin": "pdf_ocr" if ocr_complete else "pdf_native_text", "requires_ocr": needs_ocr and not ocr_complete}})
+                if needs_ocr and not ocr_complete:
+                    warnings.append(f"Page {number}: native headers were preserved, but scanned teaching content could not be read.")
             else:
                 warnings.append(f"Page {number} has no extractable text.")
             if progress:
@@ -94,8 +119,8 @@ def pdf_units(path, progress=None):
         from .visuals import pdf_visual_units
         visual_units, visual_warnings = pdf_visual_units(path, {u["page_number"]: u["text"] for u in units}, progress=progress)
         units += visual_units
-        if not any(unit["text"].strip() for unit in units):
-            raise LearningError("No readable teaching content was found. This may be a scanned PDF: install Tesseract OCR and add it to PATH, configure a vision model, or upload a searchable PDF. The original file is retained.")
+        if not any(unit["text"].strip() and not unit.get("layout", {}).get("requires_ocr") for unit in units):
+            raise LearningError("This appears to be a scanned PDF. No readable teaching content was found: OCR is required, but usable OCR or visual extraction is not available on this deployment. Ask the administrator to enable Tesseract OCR, or upload a searchable PDF. The original file is retained.")
         units.sort(key=lambda item: (item["page_number"], item.get("content_type") == "visual"))
         for index, unit in enumerate(units, 1):
             unit["number"] = index
@@ -119,7 +144,7 @@ def slide_units(path, progress=None):
         deck = Presentation(path)
         if len(deck.slides) > 500:
             raise LearningError("Upload at most 500 slides.")
-        units = []
+        units, warnings = [], []
         for number, slide in enumerate(deck.slides, 1):
             if progress:
                 progress("slides", number - 1, len(deck.slides), "slides")
@@ -140,14 +165,14 @@ def slide_units(path, progress=None):
                             buffer = io.BytesIO()
                             picture.convert("RGB").save(buffer, format="JPEG", quality=80)
                             item["image"] = "data:image/jpeg;base64," + base64.b64encode(buffer.getvalue()).decode()
-                            visual_text = image_text(buffer.getvalue())
+                            visual_text = safe_image_text(buffer.getvalue(), warnings, f"Slide {number}")
                             if visual_text:
                                 texts.append("Slide image text: " + visual_text)
                             visual_buffer = io.BytesIO()
                             picture.convert("RGB").save(visual_buffer, format="PNG")
-                            pictures.append(visual_buffer.getvalue())
+                            pictures.append((visual_buffer.getvalue(), visual_text))
                     except Exception:
-                        pass
+                        warnings.append(f"Slide {number}: an image could not be decoded; native slide text remains available.")
                 if "text" in item or "image" in item:
                     shapes.append(item)
             if slide.has_notes_slide and slide.notes_slide.notes_text_frame:
@@ -156,13 +181,18 @@ def slide_units(path, progress=None):
             from .visuals import slide_graph, render_slide_graph, interpret_image
             graph = slide_graph(slide)
             if graph["edges"]:
-                pictures.append(render_slide_graph(graph, deck.slide_width, deck.slide_height))
-            for blob in pictures[:8]:
+                pictures.append((render_slide_graph(graph, deck.slide_width, deck.slide_height), ""))
+            for blob, labels in pictures[:8]:
                 analysis = interpret_image(blob, "\n".join(texts), graph if graph["edges"] else {})
                 if not analysis["description"]:
-                    analysis["description"] = "Figure labels: " + image_text(blob)
+                    if labels:
+                        analysis["description"] = "Figure labels: " + labels
+                    else:
+                        warnings.append(f"Slide {number}: image preserved, but visual interpretation was unavailable. Readable slide text remains available.")
+                if analysis.get("warning"):
+                    warnings.append(analysis["warning"])
                 units.append({"slide_number": number, "title": (slide.shapes.title.text if slide.shapes.title else f"Slide {number}")[:200],
-                              "content_type": "visual", "text": "Educational diagram/figure. " + analysis["description"],
+                              "content_type": "visual", "text": "Educational diagram/figure. " + analysis["description"] if analysis["description"] else "",
                               "visual_description": analysis["description"], "analysis_method": analysis["method"],
                               "visual_blob": blob, "layout": {"origin": "slide_figure", "analysis": analysis, "nearby_text": "\n".join(texts)[:4000]}})
             if progress:
@@ -171,7 +201,7 @@ def slide_units(path, progress=None):
             raise LearningError("No searchable slide text was found. Add speaker notes or upload a PDF with OCR.")
         for index, unit in enumerate(units, 1):
             unit["number"] = index
-        return units, []
+        return units, warnings
     except LearningError:
         raise
     except Exception as exc:

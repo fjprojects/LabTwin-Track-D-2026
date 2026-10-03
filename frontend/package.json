@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "predev": "node scripts/prepare-camera-assets.mjs",
     "prebuild": "node scripts/prepare-camera-assets.mjs",
-    "test:camera": "node --test src/camera/*.test.js"
+    "test:camera": "node --test src/camera/*.test.js",
+    "test:api": "node --test src/api.test.js"
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "1.0.1",

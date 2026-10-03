@@ -8,7 +8,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 
 from crewai import Agent, Task, Crew, Process
-from .ai_retry import kickoff_with_retry
+from .ai_retry import kickoff_with_retry, AI_UNAVAILABLE_MESSAGE
 
 from .models import StudentProfile, ConceptProgress, TopicProgress, Attempt
 
@@ -1589,7 +1589,7 @@ Return ONLY valid JSON:
 
             print(
                 f"ADAPTIVE QUESTION AI ATTEMPT {attempt_number} FAILED:",
-                error
+                type(error).__name__
             )
 
             if attempt_number >= 3:
@@ -3719,10 +3719,10 @@ def adaptive_next_question(request):
 
         print(
             "ADAPTIVE NEXT ERROR:",
-            error
+            type(error).__name__
         )
 
         return JsonResponse(
-            {"error": str(error)},
+            {"error": AI_UNAVAILABLE_MESSAGE},
             status=500
         )

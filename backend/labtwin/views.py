@@ -11,12 +11,13 @@ import shutil
 from pathlib import Path
 
 from django.http import JsonResponse
+from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 from dotenv import load_dotenv
 from pypdf import PdfReader
 
 from crewai import Agent, Task, Crew, Process, LLM
-from .ai_retry import kickoff_with_retry
+from .ai_retry import kickoff_with_retry, AI_UNAVAILABLE_MESSAGE
 from .response_history import record_response, record_execution
 from .access import current_student_id
 from .hidden_results import private_summary
@@ -45,7 +46,10 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 llm = LLM(
     model="groq/openai/gpt-oss-20b",
     api_key=GROQ_API_KEY,
-    temperature=0.1
+    temperature=0.1,
+    timeout=getattr(settings, "LABTWIN_LEGACY_AI_TIMEOUT_SECONDS", 45),
+    # The existing kickoff_with_retry owns bounded rate-limit retries.
+    num_retries=0,
 )
 
 
@@ -1186,7 +1190,7 @@ Return ONLY valid JSON:
 
             print(
                 f"SYLLABUS ANALYSIS attempt {attempt_number} failed:",
-                error,
+                type(error).__name__,
             )
 
             if attempt_number >= 4:
@@ -2334,7 +2338,7 @@ def upload_syllabus(request):
 
         print(
             "UPLOAD ERROR:",
-            error,
+            type(error).__name__,
         )
 
         if _is_rate_limit_error(
@@ -2354,9 +2358,7 @@ def upload_syllabus(request):
         return JsonResponse(
             {
                 "error":
-                    str(
-                        error
-                    )
+                    AI_UNAVAILABLE_MESSAGE
             },
             status=500,
         )
@@ -2512,11 +2514,11 @@ def next_question(request):
     except Exception as error:
         print(
             "NEXT QUESTION ERROR:",
-            error
+            type(error).__name__
         )
 
         return JsonResponse(
-            {"error": str(error)},
+            {"error": AI_UNAVAILABLE_MESSAGE},
             status=500
         )
 
@@ -3868,11 +3870,11 @@ Return ONLY JSON:
     except Exception as error:
         print(
             "ANALYZE ERROR:",
-            error
+            type(error).__name__
         )
 
         return JsonResponse(
-            {"error": str(error)},
+            {"error": AI_UNAVAILABLE_MESSAGE},
             status=500
         )
 
@@ -4072,7 +4074,7 @@ Return ONLY valid JSON:
 
             print(
                 "TUTOR AI ERROR - USING SAFE FALLBACK:",
-                ai_error
+                type(ai_error).__name__
             )
 
             result = {}
@@ -4246,11 +4248,11 @@ Return ONLY valid JSON:
 
         print(
             "TUTOR ERROR:",
-            error
+            type(error).__name__
         )
 
         return JsonResponse(
-            {"error": str(error)},
+            {"error": AI_UNAVAILABLE_MESSAGE},
             status=500
         )
 
@@ -4833,10 +4835,10 @@ Return ONLY valid JSON:
     except Exception as error:
         print(
             "EVALUATE ERROR:",
-            error
+            type(error).__name__
         )
 
         return JsonResponse(
-            {"error": str(error)},
+            {"error": AI_UNAVAILABLE_MESSAGE},
             status=500
         )

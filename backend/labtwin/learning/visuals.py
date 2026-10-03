@@ -123,8 +123,8 @@ def pdf_visual_units(path, text_by_page, progress=None):
             near = text_by_page.get(index + 1, "")
             analysis = interpret_image(blob, near, graph)
             if not analysis["description"]:
-                from .extraction import image_text
-                labels = image_text(blob)
+                from .extraction import safe_image_text
+                labels = safe_image_text(blob, warnings, f"Page {index + 1}")
                 if labels:
                     analysis["description"] = "Figure labels extracted from page pixels: " + labels[:3500]
                 else:

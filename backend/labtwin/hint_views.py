@@ -4,7 +4,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 
 from crewai import Agent, Task, Crew, Process
-from .ai_retry import kickoff_with_retry
+from .ai_retry import kickoff_with_retry, AI_UNAVAILABLE_MESSAGE
 from .response_history import record_response
 
 from .views import (
@@ -319,13 +319,13 @@ Return ONLY valid JSON:
 
         print(
             "PROGRESSIVE HINT ERROR:",
-            error
+            type(error).__name__
         )
 
         return JsonResponse(
             {
                 "error":
-                    str(error)
+                    AI_UNAVAILABLE_MESSAGE
             },
             status=500
         )

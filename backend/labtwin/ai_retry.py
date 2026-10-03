@@ -2,6 +2,8 @@ import math
 import re
 import time
 
+AI_UNAVAILABLE_MESSAGE = "AI assistance is temporarily unavailable. Your saved work is retained. Refresh before trying again."
+
 
 RATE_LIMIT_MARKERS = (
     "ratelimiterror",

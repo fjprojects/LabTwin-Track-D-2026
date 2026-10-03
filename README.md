@@ -63,14 +63,14 @@ flowchart TD
 | Concern | Main modules |
 |---|---|
 | Authentication/classrooms | `access.py`, `classroom_views.py`, `assessment_views.py`, `live_views.py` |
-| Upload/extraction | `learning/ingestion.py`, `extraction.py`, `transcription.py`, `visuals.py`, `taxonomy.py` |
+| Upload/extraction | `learning/processing.py`, `workers.py`, `ingestion.py`, `extraction.py`, `transcription.py`, `visuals.py`, `taxonomy.py` |
 | Chunking/embedding/retrieval | `ingestion.py`, `vectors.py` |
 | Grounding/citations/media | `rag.py`, `sources.py`, `media.py` |
 | Assessment/verification/novelty | `assessments.py`, `practice.py`, `question_generation.py`, `question_verification.py`, `novelty.py` |
 | Learner/personalization | `learner_model.py`, `mastery.py`, `coaching.py`, `viva.py` |
 | Analytics/evaluation | `insights.py`, `evaluation.py`, `scripts/run_benchmarks.py`, `scripts/evaluate_metrics.py` |
 
-Migrations `0007_final_track_d` and `0008_assessment_camera` add fields/models without deleting existing records. Historical material units survive reprocessing so previously saved citations retain their location. Reindexing selects active units only. Existing course scores keep their legacy model label until evidence is explicitly replayed; global lab readiness is preserved.
+Migrations `0007_final_track_d`, `0008_assessment_camera` and `0009_material_processing_progress` add fields/models without deleting existing records. Historical material units survive reprocessing so previously saved citations retain their location. Reindexing selects active units only. Existing course scores keep their legacy model label until evidence is explicitly replayed; global lab readiness is preserved.
 
 ## Multimodal pipeline
 
@@ -142,6 +142,8 @@ cp .env.example .env
 
 Edit `.env`: set `DJANGO_SECRET_KEY`, the exact `FRONTEND_URL` and an **absolute** `LABTWIN_EVALUATOR_PYTHON` pointing to `.venv-evaluation/bin/python`. Configure your own `GROQ_API_KEY` for AI/speech, a currently supported vision model for arbitrary raster figures, and a separate verifier/judge model where needed. Credentials stay out of git.
 
+Scanned PDF notes require **Tesseract on PATH** for local OCR; searchable PDFs use native text extraction. PDF rendering uses PyMuPDF, so Poppler is no longer required for scanned PDF processing. On Windows, activate `.venv\Scripts\Activate.ps1`, install the same Python requirements, and ensure Tesseract, ffmpeg, GCC and the JDK tools needed for your course are on PATH. Verify `tesseract --version`, `ffmpeg -version`, `gcc --version` and `javac -version`. LibreOffice is required only for legacy `.ppt` conversion. A missing OCR tool now produces a retryable error rather than empty extracted notes.
+
 The Chroma ONNX MiniLM embedding model downloads on first use. Warm its cache before a live demo, or explicitly choose `LABTWIN_EMBEDDING_BACKEND=hash` for offline reproducibility. Hash mode is lexical feature hashing, not neural semantic understanding. Never change an existing vector directory's Chroma format in place; retain a backup, choose a new directory and run `reindex_materials`.
 
 ## Dependencies
@@ -170,6 +172,7 @@ Copy [.env.example](.env.example). Main variables:
 | `LABTWIN_EMBEDDING_BACKEND` | `onnx` for neural retrieval or explicit offline `hash` |
 | `LABTWIN_MEDIA_ROOT`, `LABTWIN_VECTOR_ROOT` | Persistent private uploads and vector index |
 | `LABTWIN_PROCESS_INLINE`, `LABTWIN_DEMO_ENABLED` | Trusted small-demo synchronous processing and teacher Demo Mode |
+| `LABTWIN_PROCESS_MODE`, `LABTWIN_MATERIAL_TIMEOUT_SECONDS` | `local` automatically dispatches bounded background jobs; `external` uses dedicated workers. Material deadline defaults to 600 seconds |
 | `LABTWIN_UPLOAD_MAX_BYTES`, `LABTWIN_MEDIA_MAX_SECONDS`, `LABTWIN_MAX_VISUAL_UNITS`, `LABTWIN_VIDEO_OCR` | Extraction limits and bounded video OCR |
 | `LABTWIN_RUNNER_URL`, `LABTWIN_RUNNER_SECRET` | Optional isolated execution worker; see `executor/README.md` |
 | `WEBRTC_ICE_SERVERS` | Deployment STUN/TURN configuration for existing consent-based sharing |
@@ -185,7 +188,9 @@ python manage.py check
 python manage.py runserver
 ```
 
-In two separate terminals with the application environment activated, from `backend`:
+Local development defaults to `LABTWIN_PROCESS_MODE=local` and `LABTWIN_PROCESS_INLINE=false`. Uploads start automatically after the database transaction commits; no extra worker terminal is needed. The materials page shows actual extraction, OCR, indexing and summary stages with page/slide/chunk counts when known. Queued uploads resume when the authorized teacher opens that page. Interrupted jobs retain their original file and become retryable after their deadline. Increase `LABTWIN_MATERIAL_TIMEOUT_SECONDS` for very large scanned textbooks.
+
+For hosting, explicitly set `LABTWIN_PROCESS_MODE=external` and run both dedicated workers against the same persistent database and private directories. From `backend`, in two separate worker processes:
 
 ```bash
 python manage.py process_materials --watch
@@ -194,6 +199,8 @@ python manage.py process_materials --watch
 ```bash
 python manage.py process_evaluations --watch
 ```
+
+When upgrading a server with notes stuck at Processing, back up its data, install requirements, run `python manage.py migrate`, and restart the server/workers. Open Course Materials and use **Retry processing** for failed uploads or **Resume** for queued uploads. An active job cannot be retried while it still owns a valid lease. Its default maximum processing time is ten minutes plus a 30-second recovery grace period; original files and old citations are retained.
 
 From `frontend`:
 
@@ -219,10 +226,12 @@ With both environments installed, from the project root:
 ```bash
 export LABTWIN_TEST_EVALUATOR_PYTHON="$PWD/.venv-evaluation/bin/python"
 cd backend
-python manage.py test labtwin.test_response_history labtwin.test_classrooms labtwin.test_assessments labtwin.test_learning labtwin.test_track_d labtwin.test_assessment_camera labtwin.test_learning_migrations --settings=backend.test_settings
+python manage.py test labtwin.test_response_history labtwin.test_classrooms labtwin.test_assessments labtwin.test_learning labtwin.test_track_d labtwin.test_assessment_camera labtwin.test_material_processing labtwin.test_learning_migrations --settings=backend.test_settings
 python manage.py check
 python manage.py makemigrations --check --dry-run
 ```
+
+From the project root, also run `python scripts/check_background_uploads.py`. It uses a disposable persistent database and the normal application routes to exercise real child-process PDF/PPTX/video ingestion, scanned PDF OCR, corrupted upload handling, source isolation, citations, programming/hints/retry, mastery, adaptive follow-up, viva and reports. With `LABTWIN_TEST_EVALUATOR_PYTHON` set, it additionally executes a real background DeepEval run. It explicitly uses offline hash embeddings and disables remote AI; it does not claim provider quality. Tesseract, ffmpeg and GCC are required for this integration check.
 
 From `frontend`: `npm run test:camera`, `npm run build` and `npm run lint`. The predev/prebuild script prepares self-hosted camera WASM assets; the official Face Landmarker model is bundled. Browser checks are documented in [demo guide](docs/DEMO_GUIDE.md); they use a disposable local database, not production data. No failing tests are disabled. [Validation record](docs/VALIDATION.md) records the release checks and environment limits.
 

@@ -33,7 +33,7 @@ Route abbreviations below use `/api/learning/` unless a full prefix is shown. Fi
 | Technical documentation and setup | Implemented | README, architecture/API guide, BKT/assessment/evaluation definitions, `.env.example` | Keep model choices and target deployment configuration current |
 | Measured evaluation results and reproducibility | Implemented | `evaluation/results/baseline.json`, gold data, CLI, dashboard, profiles | Broader corpus, semantic live run and real-student study remain weaknesses |
 | 3–10 minute demonstration with English audio/subtitles | Implemented | `docs/demo/labtwin-track-d-demo.mp4`, original WebM and English SRT | Local recording; publish to YouTube as required |
-| Public GitHub repository with upgraded code and README | Partially Implemented | `fjprojects/LabTwin-Track-D-2026`; full source archive | Publication is in progress; see the current checkpoint for verified completion |
+| Public GitHub repository with upgraded code and README | Implemented | [fjprojects/LabTwin-Track-D-2026](https://github.com/fjprojects/LabTwin-Track-D-2026); complete source archive | All 193 source/assets verified by exact path, size, mode and Git blob hash; no missing/extra files |
 | Required YouTube demo link | Not Implemented | Local video ready | Upload as public/unlisted, not private; no YouTube publication performed |
 | Devpost submission, complete team names/memberships | Not Implemented | Existing team labels retained in README | Verified full names, all team accounts and final submission not provided/performed |
 
@@ -90,10 +90,10 @@ Route abbreviations below use `/api/learning/` unless a full prefix is shown. Fi
 2. Execute the integrated semantic DeepEval judge mode; inspect faithfulness failures and strengthen claim entailment beyond quote presence.
 3. Calibrate learner/difficulty parameters with independent human assessment evidence and compare interventions against a baseline; simulations alone do not establish causal effectiveness.
 4. Broaden verified question pools and neural novelty validation beyond source-recognition templates and the small benchmark.
-5. Validate target deployment Docker, isolated execution and real WebRTC frame/audio delivery; then publish code, YouTube demo and complete Devpost/team details.
+5. Validate target deployment Docker, isolated execution and real WebRTC frame/audio delivery; publish the YouTube demo and complete Devpost/team details. The full upgraded GitHub project has been published and verified.
 
 Optional translation, flashcards/audio briefs and calendar schedules were not prioritized over mandatory grounding/assessment/evaluation work.
 
 ## Assessment-camera extension
 
-Optional camera reminders now work in diagnostic/quiz/mock sessions and reuse the existing assignment/viva stream. Migration `0008_assessment_camera`, `learning/camera.py`, `camera_views.py`, `frontend/src/camera/`, `AssessmentCameraReview.jsx` and [camera documentation](ASSESSMENT_CAMERA.md) provide student consent, local face/head geometry, sustained cues, voluntary source-linked explanations, teacher timelines and settings. Eye closure requires teacher and student choice, is never checked or graded, and has an eyes-open/written alternative. No camera inference is used as evidence of comprehension or misconduct; no camera event updates BKT or scores. This extension does not resolve the previously documented live-provider, semantic evaluation, broader-corpus or publication limitations.
+Optional camera reminders now work in diagnostic/quiz/mock sessions and reuse the existing assignment/viva stream. Migration `0008_assessment_camera`, `learning/camera.py`, `camera_views.py`, `frontend/src/camera/`, `AssessmentCameraReview.jsx` and [camera documentation](ASSESSMENT_CAMERA.md) provide student consent, local face/head geometry, sustained cues, voluntary source-linked explanations, teacher timelines and settings. Eye closure requires teacher and student choice, is never checked or graded, and has an eyes-open/written alternative. No camera inference is used as evidence of comprehension or misconduct; no camera event updates BKT or scores. This extension does not resolve the previously documented live-provider, semantic evaluation or broader-corpus limitations. Complete code/model publication is verified in the checkpoint.

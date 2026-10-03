@@ -21,7 +21,7 @@ This report maps the supplied official judging weights to working code and execu
 
 ## Submission readiness
 
-The local code, runnable workflow, measured baseline, captioned video and documentation are available. Publication of the upgraded GitHub branch and required YouTube/Devpost links is pending. Live vision/speech/neural/judge validation and broader learning-effectiveness evidence should be resolved before claiming complete Track D coverage. Optional flashcards, translation and exam-date scheduling were deferred in favor of mandatory grounding, verification and measurement.
+The complete upgraded code, camera model, runnable workflow, measured baseline, captioned videos and documentation are published at [fjprojects/LabTwin-Track-D-2026](https://github.com/fjprojects/LabTwin-Track-D-2026). All 193 source/assets matched the tested release by path, size, mode and Git blob hash. Required YouTube/Devpost links remain pending. Live vision/speech/neural/judge validation and broader learning-effectiveness evidence should be resolved before claiming complete Track D coverage. Optional flashcards, translation and exam-date scheduling were deferred in favor of mandatory grounding, verification and measurement.
 
 ## PDF processing repair — 3 October 2026
 

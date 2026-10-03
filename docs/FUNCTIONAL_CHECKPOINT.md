@@ -18,6 +18,7 @@ Confirmed defects repaired and verified:
 
 ## Completed checks
 
+- The **complete upgraded project** is published to [fjprojects/LabTwin-Track-D-2026](https://github.com/fjprojects/LabTwin-Track-D-2026): **193 files**, including the camera model, full backend/frontend, migrations, evaluation dataset/results, utility scripts, demo source materials, both demo videos and documentation. Every path, size, mode and Git blob hash matched the tested source, with no missing or extra files. The original `fjprojects/projects` repository was not changed.
 - **110 Django tests passed** (83.026 seconds), including all existing suites, 13 new queue/OCR regressions and additive migration preservation. No tests disabled.
 - **17 final targeted processing/migration tests passed**; normal application check passed; no migration drift.
 - Frontend production build, lint and **10 camera-policy tests passed**.
@@ -28,7 +29,6 @@ Confirmed defects repaired and verified:
 
 ## Still pending / deployment checks
 
-- Complete publication to `fjprojects/LabTwin-Track-D-2026` and verify every source/blob hash. The earlier upload committed only 28 files; publication is now continuing and completion will be recorded after verification.
 - Live speech/vision/tutor/verifier/semantic-judge quality, ONNX model download/cache and legacy PPT conversion need configured provider/native tools. Current reproducible checks explicitly use offline embeddings and captioned video.
 - Java compilation was not validated here because `javac` is unavailable. Install a full JDK on the target machine. Existing Java functionality is retained.
 - Camera field accuracy, real-school WebRTC transport, Docker/isolated-runner deployment and human-learning effectiveness remain unverified.

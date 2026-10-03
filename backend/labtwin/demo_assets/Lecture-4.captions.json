@@ -1,0 +1,22 @@
+[
+  {
+    "start": 0,
+    "end": 10,
+    "text": "Linked Lists. A linked list stores nodes connected by next pointers. The head pointer identifies the first node. An empty list has a null head."
+  },
+  {
+    "start": 10,
+    "end": 20,
+    "text": "Insertion at the beginning. To insert at the beginning of a linked list, first connect the new node to the previous head. Then update the head pointer to the new node. This preserves the existing chain."
+  },
+  {
+    "start": 20,
+    "end": 30,
+    "text": "The conceptual mistake. If the new node's next pointer is set to NULL before updating the head, the old nodes become unreachable. The first insertion can pass while insertion into a non-empty list fails."
+  },
+  {
+    "start": 30,
+    "end": 40,
+    "text": "Reassessment: count the nodes. To count the nodes, start at head, increment the count once for each visited node, and follow next until NULL. An empty list has zero nodes."
+  }
+]

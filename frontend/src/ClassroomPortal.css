@@ -1,0 +1,35 @@
+.classroomPortal { width: 100%; max-width: 1200px; min-width: 0; box-sizing: border-box; margin: 32px auto; padding: 24px; color: #182b40; font-family: inherit; text-align: left; }
+.classroomPortal.authCard { max-width: 520px; background: #fff; border-radius: 20px; box-shadow: 0 12px 48px #16365b18; }
+.classroomPortal .eyebrow { color: #28615c; letter-spacing: .12em; font-size: 12px; font-weight: 800; }
+.classroomPortal h1 { font-size: clamp(24px, 4vw, 36px); line-height: 1.2; }
+.classroomPortal h2 { font-size: 22px; }
+.classroomPortal h3 { font-size: 17px; }
+.classroomPortal p { line-height: 1.6; }
+.classroomPortal label { display: block; font-weight: 650; margin: 14px 0; }
+.classroomPortal input, .classroomPortal select { display: block; box-sizing: border-box; width: 100%; padding: 12px; margin-top: 6px; border: 1px solid #a4b7c6; border-radius: 8px; background: #fff; color: #182b40; font: inherit; }
+.classroomPortal button { background: #17645c; color: white; border: 0; border-radius: 8px; padding: 10px 15px; font: inherit; cursor: pointer; margin: 5px 0; }
+.classroomPortal button.secondary { background: #e8eff3; color: #243c50; }
+.classroomPortal button:disabled { opacity: .55; cursor: wait; }
+.classroomPortal :focus-visible { outline: 3px solid #bd7900; outline-offset: 3px; }
+.classroomHeader { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
+.classroomColumns { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); gap: 20px; }
+.classroomBox { background: white; border: 1px solid #d5e0e8; border-radius: 14px; padding: 22px; margin-bottom: 20px; min-width: 0; }
+.classroomTile { border-top: 1px solid #e0e7ec; margin-top: 15px; padding-top: 6px; }
+.joinCode { font-family: monospace; letter-spacing: .1em; overflow-wrap: anywhere; }
+.rosterScroll { overflow-x: auto; }
+.classroomPortal table { width: 100%; border-collapse: collapse; text-align: left; }
+.classroomPortal th, .classroomPortal td { padding: 12px 10px; border-bottom: 1px solid #e0e7ec; vertical-align: top; }
+.classroomPortal small { display: block; color: #567; }
+.classroomPortal [role=alert] { color: #a12727; }
+.classroomPortal .readiness { font-size: 23px; font-weight: 700; }
+@media (max-width: 700px) { .classroomColumns { grid-template-columns: 1fr; } .classroomPortal { padding: 14px; margin: 12px auto; } }
+
+.classroomPortal textarea { display: block; box-sizing: border-box; width: 100%; min-height: 110px; padding: 12px; margin-top: 6px; border: 1px solid #a4b7c6; border-radius: 8px; background: white; color: #182b40; font: inherit; }
+.classroomPortal textarea.codeEditor { min-height: 340px; font-family: monospace; tab-size: 4; }
+.classroomPortal .checkLabel { display: flex; align-items: center; gap: 10px; }
+.classroomPortal .checkLabel input { width: auto; }
+.classroomPortal pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 350px; overflow: auto; padding: 12px; background: #f2f5f7; }
+.classroomPortal .assignmentCreator summary { cursor: pointer; font-weight: 700; padding: 10px 0; }
+.classroomPortal .vivaReminder { padding: 16px; background: #fff5d7; border: 1px solid #d5b757; border-radius: 10px; }
+.classroomPortal .activeAssignment { border: 2px solid #17645c; }
+.classroomPortal audio { width: 100%; max-width: 320px; }

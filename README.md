@@ -243,7 +243,7 @@ The compatibility runner executes code on the host; use the supplied isolated wo
 
 Broad raster-diagram semantics, speech transcription, neural retrieval, independent semantic verification and LLM-judge evaluation need live-model/cache validation. Native diagrams, embedded captions, hash retrieval and deterministic verification/evaluation are the executed release path. Slides are reconstructed rather than pixel-perfect PowerPoint renderings; visual/video sampling has limits. Numericals require supported source data. Duplicate detection is approximate. BKT parameters and difficulty are not calibrated to a student population.
 
-Optional generated flashcards/audio briefs, exam-date schedules and multilingual/audio tutoring are not implemented. GitHub publication and the required YouTube/Devpost submission remain pending; local code and evidence are packaged. See the audit for the complete gap list.
+Optional generated flashcards/audio briefs, exam-date schedules and multilingual/audio tutoring are not implemented. The complete upgraded project is published at [fjprojects/LabTwin-Track-D-2026](https://github.com/fjprojects/LabTwin-Track-D-2026); all 193 source/assets were verified by path, size and Git blob hash. YouTube/Devpost submission remains pending. See the audit for the complete gap list and [current functionality checkpoint](docs/FUNCTIONAL_CHECKPOINT.md) for the PDF repair and remaining deployment checks.
 
 ## Team and repository
 

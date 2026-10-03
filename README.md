@@ -182,6 +182,12 @@ Copy [.env.example](.env.example). Main variables:
 
 ## Running LabTwin
 
+For an optional private Linux/HTTPS browser acceptance deployment of this
+existing application, see [deployment instructions](deployment/README.md).
+It uses the current requirements, migrations and UI; the old Intel Mac only
+needs a web browser. Hosted deployment and camera checks must be measured on
+the actual service before declaring demo readiness.
+
 Back up the existing SQLite database, private uploads, vector index and `student_sessions/` before upgrading. Do not replace them with demo files.
 
 ```bash

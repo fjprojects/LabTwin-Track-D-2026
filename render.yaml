@@ -1,0 +1,22 @@
+# Private, disposable acceptance-test deployment. No automatic paid resources.
+services:
+  - type: web
+    name: labtwin-track-d-demo
+    runtime: docker
+    plan: free
+    branch: hardening/track-d-demo-20261003
+    dockerfilePath: ./deployment/Dockerfile
+    dockerContext: .
+    autoDeployTrigger: "off"
+    healthCheckPath: /deployment/health/
+    envVars:
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: LABTWIN_DEPLOYMENT_PASSWORD
+        generateValue: true
+      - key: LABTWIN_DEMO_ENABLED
+        value: "true"
+      - key: LABTWIN_EMBEDDING_BACKEND
+        value: hash
+# Free instances are ephemeral and can restart. Use only new test data and
+# export acceptance evidence. A paid persistent disk requires separate approval.

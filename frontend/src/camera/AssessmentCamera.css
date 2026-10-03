@@ -1,0 +1,15 @@
+.assessmentCamera { margin: 1.2rem 0; padding: 1rem; border: 1px solid #b9d4cd; border-radius: 12px; background: #f6fbf9; }
+.assessmentCamera h3 { margin-top: 0; }
+.cameraLayout { display: grid; grid-template-columns: minmax(160px, 260px) minmax(0, 1fr); gap: 1rem; align-items: start; }
+.cameraLayout:has(.cameraPreview[hidden]) { grid-template-columns: 1fr; }
+.cameraPreview { width: 100%; max-height: 210px; border-radius: 9px; background: #142d29; transform: scaleX(-1); }
+.assessmentCamera .cameraChecks label { display: flex; align-items: flex-start; gap: .6rem; margin: .6rem 0; }
+.assessmentCamera .cameraChecks input[type=checkbox] { width: auto; margin-top: .3rem; }
+.cameraControls { display: flex; gap: .5rem; flex-wrap: wrap; margin: .8rem 0; }
+.cameraInstruction { border-left: 4px solid #bf8730; background: #fff8e9; border-radius: 7px; padding: 1rem; margin: .7rem 0; }
+.cameraInstruction textarea { width: 100%; min-height: 85px; }
+.cameraTimeline { list-style: none; padding: 0; }
+.cameraTimeline li { margin: .7rem 0; padding: .7rem; background: #f5f8f7; border-radius: 8px; }
+.cameraTimeline time { display: block; font-size: .85rem; color: #53655f; }
+.cameraLive { color: #17633e; font-weight: 650; }
+@media (max-width: 600px) { .cameraLayout { grid-template-columns: 1fr; } .cameraPreview { max-height: 170px; width: min(100%, 260px); } }

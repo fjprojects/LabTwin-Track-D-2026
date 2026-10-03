@@ -114,14 +114,17 @@ compare saved API values with UI values; never copy bearer tokens into reports.
 
 1. Start a student assessment with camera consent **off**. No camera indicator,
    preview or analysis should start; no `camera_started` observation is valid.
-2. Enable the displayed camera consent/start control, then **Allow** the browser
-   permission prompt. Confirm the camera preview/status and permitted analysis.
+2. Check **I agree to the optional local camera analysis/preview and saving
+   event metadata for teacher review**, click **Turn on assessment camera**,
+   then **Allow** the browser permission prompt. Confirm preview/status/analysis.
    If the teacher disabled cues, enable them through existing course settings.
-3. Revoke consent/use **Stop camera**. The stream and analysis must stop. Confirm
+3. Click **Stop assessment camera**, then uncheck consent if it remains checked.
+   The stream and analysis must stop. Confirm
    the hardware indicator turns off and no further cues are recorded. Keep the
    browser open briefly and inspect the camera evidence timeline.
-4. Reset/block camera permission for that origin, start again, and **Deny** the
-   prompt. Confirm a clear error with a usable assessment, without a spinner or
+4. Set that origin's browser camera permission back to **Ask**, start again,
+   and **Deny** the prompt. Confirm a clear error with a usable assessment,
+   without a spinner or
    crash. Restore permission afterwards in browser site settings.
 5. Camera events themselves must not change grades/mastery or declare cheating.
    Compare values before/after a cue **without submitting an answer**. Frames

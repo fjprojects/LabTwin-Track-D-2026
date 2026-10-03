@@ -19,7 +19,7 @@ in the executed regression/native HTTP checks. Demo readiness is not certified.
 | Item | Result | Evidence / scope |
 |---|---|---|
 | 1. Deployment URL | BLOCKED BY TEST ENVIRONMENT | Hosting account not connected; no real service URL exists |
-| 2. Branch/commit actually deployed | NOT TESTED | Nothing deployed; prepared branch above retains f7bd420 as its parent |
+| 2. Branch/commit actually deployed | NOT TESTED | Nothing deployed; prepared branch preserves f7bd420 in its history |
 | 3. Backend deployment | BLOCKED BY TEST ENVIRONMENT | Native Linux Gunicorn startup passes; hosted service not created |
 | 4. Frontend deployment | BLOCKED BY TEST ENVIRONMENT | Existing Vite build and actual Gunicorn asset serving pass; hosted UI not created |
 | 5. Deployment DB/migrations | NOT TESTED | Fresh native SQLite migrations pass; hosted DB not provisioned |

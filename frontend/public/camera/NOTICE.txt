@@ -1,0 +1,8 @@
+MediaPipe Vision Tasks
+Copyright Google LLC and contributors.
+JavaScript/WASM runtime: @mediapipe/tasks-vision 1.0.1 (package license: Apache-2.0).
+Official model source, version and checksum: model.json.
+Project: https://github.com/google-ai-edge/mediapipe
+Guide: https://ai.google.dev/edge/mediapipe/solutions/vision/face_landmarker/web_js
+Runtime assets are copied from the pinned npm package during predev/prebuild.
+No student photographs, recordings or identity templates are distributed here.

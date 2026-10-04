@@ -14,10 +14,18 @@ from ..models import AccessToken
 from .access import LearningError, material_for
 
 SALT = "labtwin-private-course-media-v1"
+TICKET_LIFETIME = 300
 
 
 def media_url(request, material, unit=None):
-    ticket = signing.dumps({"material": material.id, "token": request.access_token.digest, "unit": unit.id if unit else None}, salt=SALT)
+    payload = {"material": material.id, "token": request.access_token.digest, "unit": unit.id if unit else None}
+    # The optional private deployment gate can delegate its existing access to
+    # this exact file. Native viewers need no cookie/header, but session and
+    # classroom checks below still run for every GET/HEAD/range request.
+    private_access = getattr(request, "private_deployment_fingerprint", None)
+    if private_access:
+        payload["deployment_access"] = private_access
+    ticket = signing.dumps(payload, salt=SALT)
     route, args = ("learning-visual", [material.id, unit.id]) if unit else ("learning-media", [material.id])
     return request.build_absolute_uri(reverse(route, args=args)) + "?ticket=" + ticket
 
@@ -41,7 +49,7 @@ def private_media(request, material_id, unit_id=None):
         account = authenticate_request(request)
         if not account:
             try:
-                data = signing.loads(request.GET.get("ticket", ""), salt=SALT, max_age=300)
+                data = signing.loads(request.GET.get("ticket", ""), salt=SALT, max_age=TICKET_LIFETIME)
             except signing.BadSignature:
                 return JsonResponse({"error": "This source link expired. Reopen the citation."}, status=401)
             token = AccessToken.objects.select_related("account__user").filter(digest=data.get("token"), expires_at__gt=timezone.now(), account__user__is_active=True).first()

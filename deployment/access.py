@@ -11,6 +11,7 @@ from django.conf import settings
 from django.core import signing
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.middleware.csrf import get_token
+from django.urls import Resolver404, resolve
 from django.utils.html import escape
 from django.views.decorators.csrf import csrf_protect
 
@@ -31,6 +32,29 @@ def permitted(request):
         return False
 
 
+def permitted_media(request):
+    """Honor private access delegated to one short-lived, read-only file URL.
+
+    A native PDF viewer/new tab can omit the Strict cookie and bearer header.
+    Only tickets minted after private access may pass this gate; the original
+    media view still rechecks the live session and classroom on every request.
+    """
+    if request.method not in ("GET", "HEAD") or not request.GET.get("ticket"):
+        return False
+    from labtwin.learning.media import SALT as MEDIA_SALT, TICKET_LIFETIME, private_media
+    try:
+        match = resolve(request.path_info)
+        if match.func is not private_media or match.url_name not in ("learning-media", "learning-visual"):
+            return False
+        value = signing.loads(request.GET["ticket"], salt=MEDIA_SALT, max_age=TICKET_LIFETIME)
+        return (isinstance(value, dict)
+                and value.get("material") == match.kwargs["material_id"]
+                and value.get("unit") == match.kwargs.get("unit_id")
+                and hmac.compare_digest(str(value.get("deployment_access", "")).encode(), password_fingerprint().encode()))
+    except (Resolver404, signing.BadSignature):
+        return False
+
+
 class PrivateDeploymentMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
@@ -40,7 +64,11 @@ class PrivateDeploymentMiddleware:
         # get_host(). The reverse proxy still forwards the original host.
         request.get_host()
         public = request.path_info in ("/deployment/access/", "/deployment/health/")
-        if not public and not permitted(request):
+        private_access = permitted(request)
+        if private_access:
+            # Request-local proof, never accepted from headers/query input.
+            request.private_deployment_fingerprint = password_fingerprint()
+        if not public and not private_access and not permitted_media(request):
             response = (JsonResponse({"error": "Private demo access is required. Open /deployment/access/ first."}, status=401)
                         if request.path_info.startswith("/api/") else HttpResponseRedirect("/deployment/access/"))
         else:

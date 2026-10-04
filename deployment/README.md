@@ -38,9 +38,14 @@ The original application auth still runs after the additional private gate.
 The gate uses a signed, Secure/HttpOnly/SameSite=Strict cookie with a 12-hour
 expiry, leaving bearer Authorization headers intact. Private uploads and source
 URLs still go through the original classroom checks and signed media routes.
-Rotating the deployment password invalidates gate cookies; rotating the Django
-key invalidates signed gate/media tickets. Reopen a citation to refresh its
-five-minute source URL.
+Source links minted after private access also carry a signed, five-minute grant
+for that exact original file/figure's GET/HEAD requests. This lets native PDF
+viewers and new tabs open sources when they omit the private cookie. Each file
+request still requires the issuing LabTwin session to be active and authorized
+for its classroom. The grant never unlocks other routes or sets a gate cookie.
+Rotating the deployment password invalidates gate cookies and these grants;
+rotating the Django key invalidates signed gate/media tickets. Reopen a citation
+to refresh its five-minute source URL; keep these private links out of reports.
 
 ## Temporary hosting limitations
 
@@ -169,6 +174,7 @@ variables present, `PYTHONPATH=<repo>:<repo>/backend`, and
 
 ```bash
 python backend/manage.py test deployment.tests --noinput
+python backend/manage.py test deployment.test_media --noinput
 python backend/manage.py check --deploy
 python backend/manage.py migrate --noinput
 python backend/manage.py makemigrations --check --dry-run
@@ -176,7 +182,14 @@ python backend/manage.py makemigrations --check --dry-run
 
 These checks cover the private access gate, secret requirements, HTTPS/host
 configuration, preserved application auth, compiled assets, path traversal and
-camera permission policy. They do not certify a real browser click or camera.
+camera permission policy. The media regressions exercise real original-PDF,
+HEAD/range and figure requests through the private gate without a cookie, plus
+expiry, logout, classroom removal and cross-file/route rejection. They do not
+certify a real browser click or camera.
+
+Run the two deployment suites separately: the original settings checks inspect
+the production database path, while the media suite uses Django's temporary
+test database.
 
 Hosting references: [Docker](https://render.com/docs/docker),
 [Blueprint schema](https://render.com/docs/blueprint-spec),

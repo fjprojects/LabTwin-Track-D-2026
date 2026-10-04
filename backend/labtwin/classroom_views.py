@@ -51,7 +51,12 @@ def register(request):
             return JsonResponse({"error": "Enter a username, name and valid role."}, status=400)
         if not isinstance(password, str):
             raise ValueError("Password must be text")
-        user = get_user_model()(username=username, first_name=name)
+        email = data.get("email", "")
+        if not isinstance(email, str):
+            raise ValueError("Email must be text")
+        # Existing clients/accounts without email remain compatible. Never
+        # infer or overwrite a legacy account's email from its username.
+        user = get_user_model()(username=username, first_name=name, email=email.strip())
         user.full_clean(exclude=["password"])
         validate_password(password, user)
         with transaction.atomic():

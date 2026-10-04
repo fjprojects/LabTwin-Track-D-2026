@@ -3,6 +3,8 @@ import api, { API } from "./api";
 import ResponseHistory from "./components/ResponseHistory";
 import AssignmentsPanel from "./AssignmentsPanel";
 import LearningPortal from "./learning/LearningPortal";
+import PasswordReset from "./auth/PasswordReset";
+import { initialResetTarget, RESET_STORAGE_KEY } from "./auth/resetLink";
 import "./ClassroomPortal.css";
 
 const message = error => error.response?.data?.error || "Could not connect. Please try again.";
@@ -13,7 +15,17 @@ export default function ClassroomPortal() {
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState("");
   const [register, setRegister] = useState(false);
-  const [form, setForm] = useState({ username: "", password: "", name: "", role: "student" });
+  const [form, setForm] = useState({ username: "", password: "", email: "", name: "", role: "student" });
+  const [resetTarget, setResetTarget] = useState(initialResetTarget);
+  const [recovering, setRecovering] = useState(() => Boolean(initialResetTarget()));
+
+  useEffect(() => {
+    // Consume the private-gate handoff and remove credentials from browser
+    // history once copied into component memory. Reopen the email after a refresh.
+    if (window.location.hash.startsWith("#password-reset="))
+      window.history.replaceState(null, "", window.location.pathname + window.location.search);
+    try { sessionStorage.removeItem(RESET_STORAGE_KEY); } catch { /* Storage can be disabled. */ }
+  }, []);
 
   function clearSession() {
     window.dispatchEvent(new Event("labtwin-stop-sharing"));
@@ -67,17 +79,24 @@ export default function ClassroomPortal() {
     finally { clearSession(); }
   }
 
+  if (recovering) return <PasswordReset key={resetTarget ? "confirm" : "request"} target={resetTarget}
+    onComplete={() => clearSession()}
+    onRequestNew={() => setResetTarget(null)}
+    onBack={() => { setRecovering(false); setResetTarget(null); setRegister(false); setError(""); }} />;
+
   if (!account) return <main className="classroomPortal authCard">
     <p className="eyebrow">LABTWIN · CLASSROOMS</p>
     <h1>Your learning classroom</h1>
     <p>Learn from your course materials, practise programming and build understanding. Teachers follow progress with evidence.</p>
     <form onSubmit={submit}>
       {register && <label>Your name<input required maxLength={100} autoComplete="name" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></label>}
+      {register && <label>Email (for password recovery)<input type="email" maxLength={254} autoComplete="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} /></label>}
       <label>Username<input required maxLength={150} autoComplete="username" value={form.username} onChange={e => setForm({ ...form, username: e.target.value })} /></label>
       <label>Password<input required type="password" autoComplete={register ? "new-password" : "current-password"} value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} /></label>
       {register && <label>I am a<select value={form.role} onChange={e => setForm({ ...form, role: e.target.value })}><option value="student">Student</option><option value="teacher">Teacher</option></select></label>}
       {error && <p role="alert">{error}</p>}
       <button disabled={busy}>{busy ? "Please wait…" : register ? "Create account" : "Sign in"}</button>
+      {!register && <button type="button" className="secondary" disabled={busy} onClick={() => { setRecovering(true); setError(""); }}>Forgot password?</button>}
       <button type="button" className="secondary" disabled={busy} onClick={() => { setRegister(!register); setError(""); }}>{register ? "Already have an account? Sign in" : "New here? Create an account"}</button>
     </form>
   </main>;

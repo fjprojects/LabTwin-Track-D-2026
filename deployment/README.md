@@ -49,6 +49,12 @@ to refresh its five-minute source URL; keep these private links out of reports.
 
 ## Temporary hosting limitations
 
+Password recovery setup is documented in [PASSWORD_RECOVERY.md](../docs/PASSWORD_RECOVERY.md).
+Sending is disabled until encrypted SMTP credentials and a verified sender are
+configured. Free Render blocks SMTP ports 25/465/587. Do not redeploy this service
+to recover an account while assuming its ephemeral database/uploads survive;
+verify a backup/restoration or approved persistent-storage plan first.
+
 - Free Render services have 512 MB memory, ephemeral filesystems and can restart
   or spin down. **Capacity and the actual Docker build must be tested on the
   hosting service.** Do not count local checks as a hosted deployment pass.

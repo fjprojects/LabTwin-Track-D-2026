@@ -6,6 +6,7 @@ headers. This is not a substitute for the isolated public code worker.
 """
 import hashlib
 import hmac
+import secrets
 
 from django.conf import settings
 from django.core import signing
@@ -74,7 +75,7 @@ class PrivateDeploymentMiddleware:
         else:
             response = self.get_response(request)
         response["Permissions-Policy"] = "camera=(self), microphone=(self), display-capture=(self)"
-        response["Referrer-Policy"] = "same-origin"
+        response.setdefault("Referrer-Policy", "same-origin")
         return response
 
 
@@ -93,6 +94,7 @@ def access(request):
             return response
         wrong = True
     token = escape(get_token(request))
+    nonce = secrets.token_urlsafe(24)
     message = "<p role='alert'>The private access password was not accepted.</p>" if wrong else ""
     response = HttpResponse(f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1"><title>LabTwin private demo</title></head>
@@ -100,9 +102,17 @@ def access(request):
       <p>This deployment is for trusted acceptance testing. Use test accounts and test materials.</p>{message}
       <form method="post" action="/deployment/access/"><input type="hidden" name="csrfmiddlewaretoken" value="{token}">
       <label>Private access password <input type="password" name="password" required autocomplete="current-password"></label>
-      <button type="submit">Open LabTwin</button></form></main></body></html>""", status=401 if wrong else 200)
+      <button type="submit">Open LabTwin</button></form></main>
+      <script nonce="{nonce}">
+      // An email link may arrive without the Strict cookie. Keep only its
+      // reset fragment in this tab until the private gate opens the UI.
+      try {{
+        if (/^#password-reset=[A-Za-z0-9_-]{{1,64}}:[a-z0-9]{{1,13}}-[0-9a-f]{{32}}$/.test(location.hash))
+          sessionStorage.setItem('labtwin_password_reset', location.hash);
+      }} catch (_) {{ /* Recovery still works after reopening the email link. */ }}
+      </script></body></html>""", status=401 if wrong else 200)
     response["Cache-Control"] = "no-store"
-    response["Content-Security-Policy"] = "default-src 'none'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'"
+    response["Content-Security-Policy"] = f"default-src 'none'; script-src 'nonce-{nonce}'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'"
     return response
 
 

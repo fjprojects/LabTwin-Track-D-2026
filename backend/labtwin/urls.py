@@ -2,6 +2,7 @@ from django.urls import include, path
 from .response_history import response_history
 from .access import student_access
 from . import classroom_views, assessment_views, live_views
+from . import password_reset
 
 from .views import (
     upload_syllabus,
@@ -43,6 +44,8 @@ urlpatterns = [
     path("auth/login/", classroom_views.login),
     path("auth/me/", classroom_views.me),
     path("auth/logout/", classroom_views.logout),
+    path("auth/password-reset/", password_reset.request_reset),
+    path("auth/password-reset/confirm/", password_reset.confirm_reset),
     path("classrooms/", classroom_views.classrooms),
     path("classrooms/join/", classroom_views.join_classroom),
     path("classrooms/<int:classroom_id>/students/", classroom_views.roster),

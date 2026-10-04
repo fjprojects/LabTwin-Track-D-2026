@@ -32,6 +32,7 @@ if (_origin.scheme != "https" or not _origin.hostname or _origin.username or _or
         or _origin.path not in ("", "/") or _origin.query or _origin.fragment):
     raise ImproperlyConfigured("Set LABTWIN_PUBLIC_URL to the exact HTTPS origin, or use Render's assigned hostname.")
 LABTWIN_PUBLIC_URL = f"https://{_origin.netloc}"
+LABTWIN_PASSWORD_RESET_ORIGIN = os.getenv("LABTWIN_PASSWORD_RESET_ORIGIN", LABTWIN_PUBLIC_URL)
 ALLOWED_HOSTS = [_origin.hostname]
 CORS_ALLOWED_ORIGINS = [LABTWIN_PUBLIC_URL]
 CSRF_TRUSTED_ORIGINS = [LABTWIN_PUBLIC_URL]

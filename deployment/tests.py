@@ -138,3 +138,28 @@ class DeploymentTests(SimpleTestCase):
         self.assertEqual(response["Permissions-Policy"], "camera=(self), microphone=(self), display-capture=(self)")
         self.assertNotIn(settings.LABTWIN_DEPLOYMENT_PASSWORD, response.content.decode())
         self.assertNotIn(settings.SECRET_KEY, response.content.decode())
+
+    def test_password_reset_preserves_private_deployment_gate(self):
+        for path in ("/api/auth/password-reset/", "/api/auth/password-reset/confirm/"):
+            response = self.client.post(path, {"email": "absent@example.test"}, content_type="application/json", secure=True)
+            self.assertEqual(response.status_code, 401)
+            self.assertIn("Private demo access", response.json()["error"])
+        self.authorize()
+        response = self.client.get("/api/auth/password-reset/", secure=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Referrer-Policy"], "no-referrer")
+        self.assertEqual(response["Cache-Control"], "no-store")
+        self.assertIn("csrf_token", response.json())
+
+    def test_reset_handoff_uses_scoped_nonce_without_exposing_credentials(self):
+        import re
+        first = self.client.get("/deployment/access/", secure=True)
+        second = self.client.get("/deployment/access/", secure=True)
+        self.assertNotEqual(first["Content-Security-Policy"], second["Content-Security-Policy"])
+        nonce = re.search(r'<script nonce="([\w-]+)">', first.content.decode()).group(1)
+        self.assertIn("'nonce-" + nonce + "'", first["Content-Security-Policy"])
+        self.assertIn("sessionStorage.setItem('labtwin_password_reset', location.hash)", first.content.decode())
+        self.assertIn("default-src 'none'", first["Content-Security-Policy"])
+        self.assertNotIn("'unsafe-inline'", first["Content-Security-Policy"])
+        self.assertNotIn(settings.LABTWIN_DEPLOYMENT_PASSWORD, first.content.decode())
+        self.assertNotIn(settings.SECRET_KEY, first.content.decode())

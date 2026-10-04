@@ -228,6 +228,16 @@ See [the 17-step demo guide](docs/DEMO_GUIDE.md). A teacher selects **Demo Mode 
 
 [Captioned demonstration](docs/demo/labtwin-track-d-demo.mp4) and [English subtitles](docs/demo/labtwin-track-d-demo.srt) accompany this release. The demo is a real local browser recording; the test server stubs the old remote CrewAI handlers, while the new offline tutor, auth, retrieval, code runners, assessment and evaluation are executed. YouTube/Devpost publication is still an external submission step.
 
+## Password recovery
+
+The existing login includes **Forgot password?** with registered-email recovery,
+30-minute single-use links and existing-session revocation. Roles and learning
+records retain their identities. Email sending requires your encrypted SMTP
+credentials and verified sender; it is disabled by default and has no public
+reset-link fallback. Legacy accounts without a saved email require verified
+administrator assistance. See [password recovery setup and tests](docs/PASSWORD_RECOVERY.md),
+including the current Free Render storage/SMTP constraints.
+
 ## Testing
 
 With both environments installed, from the project root:

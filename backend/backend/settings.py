@@ -137,6 +137,20 @@ if _frontend_url:
         _frontend_url
     )
 
+# Email recovery is explicitly opt-in and has no console/file-link fallback.
+PASSWORD_RESET_TIMEOUT = 1800
+LABTWIN_PASSWORD_RESET_ORIGIN = os.getenv("LABTWIN_PASSWORD_RESET_ORIGIN", _frontend_url)
+LABTWIN_PASSWORD_RESET_EMAIL_ENABLED = os.getenv("LABTWIN_PASSWORD_RESET_EMAIL_ENABLED", "false").lower() == "true"
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = os.getenv("EMAIL_HOST", "")
+EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "true").lower() == "true"
+EMAIL_USE_SSL = os.getenv("EMAIL_USE_SSL", "false").lower() == "true"
+EMAIL_TIMEOUT = 10
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "")
+
 CSRF_TRUSTED_ORIGINS = []
 
 if _frontend_url:

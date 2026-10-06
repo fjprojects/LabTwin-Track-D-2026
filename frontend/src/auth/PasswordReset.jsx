@@ -6,52 +6,76 @@ const failureMessage = error => typeof error.response?.data?.error === "string"
 
 export default function PasswordReset({ target, onBack, onComplete, onRequestNew }) {
   const [email, setEmail] = useState("");
+  const [method, setMethod] = useState("otp");
+  const [requestId, setRequestId] = useState("");
+  const [code, setCode] = useState("");
+  const [verifiedTarget, setVerifiedTarget] = useState(null);
   const [passwords, setPasswords] = useState({ new_password1: "", new_password2: "" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [done, setDone] = useState(false);
+  const credential = target || verifiedTarget;
+  const step = done ? "done" : credential ? "password" : requestId ? "otp" : "request";
 
   async function submit(event) {
     event.preventDefault();
-    if (target && passwords.new_password1 !== passwords.new_password2) {
+    if (step === "password" && passwords.new_password1 !== passwords.new_password2) {
       setError("The two passwords must match."); return;
     }
     setBusy(true); setError(""); setNotice("");
     try {
-      // These two new endpoints use Django CSRF protection without changing
-      // the application's existing bearer-based authentication.
       const { data: security } = await api.get(`${API}/auth/password-reset/`, { withCredentials: true });
-      const { data } = await api.post(
-        `${API}/auth/password-reset/${target ? "confirm/" : ""}`,
-        target ? { ...target, ...passwords } : { email },
-        { headers: { "X-CSRFToken": security.csrf_token }, withCredentials: true },
-      );
+      const suffix = step === "password" ? "confirm/" : step === "otp" ? "otp/verify/" : "";
+      const payload = step === "password" ? { ...credential, ...passwords }
+        : step === "otp" ? { request_id: requestId, code } : { email, method };
+      const { data } = await api.post(`${API}/auth/password-reset/${suffix}`, payload,
+        { headers: { "X-CSRFToken": security.csrf_token }, withCredentials: true });
       setNotice(data.message);
-      setPasswords({ new_password1: "", new_password2: "" });
-      if (target) onComplete();
+      if (step === "request" && method === "otp") setRequestId(data.request_id);
+      else if (step === "otp") { setVerifiedTarget({ uid: data.uid, token: data.token }); setCode(""); }
+      else {
+        setDone(true); setPasswords({ new_password1: "", new_password2: "" }); setVerifiedTarget(null);
+        if (step === "password") onComplete();
+      }
     } catch (err) { setError(failureMessage(err)); }
     finally { setBusy(false); }
   }
 
+  function requestNew() {
+    setRequestId(""); setVerifiedTarget(null); setCode(""); setDone(false);
+    setPasswords({ new_password1: "", new_password2: "" }); setError(""); setNotice("");
+    if (target) onRequestNew();
+  }
+
   return <main className="classroomPortal authCard">
     <p className="eyebrow">LABTWIN · CLASSROOMS</p>
-    <h1>{target ? "Set a new password" : "Forgot password?"}</h1>
-    <p>{target ? "Choose a new password for your existing LabTwin account."
-      : "Enter your registered email to request a password reset link."}</p>
-    {!notice && <form onSubmit={submit}>
-      {target ? <>
+    <h1>{step === "password" ? "Set a new password" : step === "otp" ? "Enter verification code" : "Forgot password?"}</h1>
+    <p>{step === "password" ? "Choose a new password for your existing LabTwin account."
+      : step === "otp" ? "Enter the eight-digit code from your email. It expires after 10 minutes and allows five attempts."
+        : "Enter your registered email to recover your existing account."}</p>
+    {notice && <p role="status">{notice}</p>}
+    {step !== "done" && <form onSubmit={submit}>
+      {step === "password" ? <>
         <label>New password<input required type="password" minLength={8} maxLength={1024} autoComplete="new-password"
           value={passwords.new_password1} onChange={e => setPasswords({ ...passwords, new_password1: e.target.value })} /></label>
         <label>Confirm new password<input required type="password" minLength={8} maxLength={1024} autoComplete="new-password"
           value={passwords.new_password2} onChange={e => setPasswords({ ...passwords, new_password2: e.target.value })} /></label>
-      </> : <label>Registered email<input required type="email" maxLength={254} autoComplete="email"
-        value={email} onChange={e => setEmail(e.target.value)} /></label>}
+      </> : step === "otp" ? <label>Email verification code<input required type="text" inputMode="numeric"
+        pattern="[0-9]{8}" minLength={8} maxLength={8} autoComplete="one-time-code"
+        value={code} onChange={e => setCode(e.target.value)} /></label> : <>
+        <label>Registered email<input required type="email" maxLength={254} autoComplete="email"
+          value={email} onChange={e => setEmail(e.target.value)} /></label>
+        <label>Recovery method<select value={method} onChange={e => setMethod(e.target.value)}>
+          <option value="otp">Email OTP</option><option value="link">Email reset link</option>
+        </select></label>
+      </>}
       {error && <p role="alert">{error}</p>}
-      <button disabled={busy}>{busy ? "Please wait…" : target ? "Reset password" : "Send reset link"}</button>
+      <button disabled={busy}>{busy ? "Please wait…" : step === "password" ? "Reset password"
+        : step === "otp" ? "Verify code" : method === "otp" ? "Send verification code" : "Send reset link"}</button>
     </form>}
-    {notice && <p role="status">{notice}</p>}
-    {!target && <p>Older accounts without a saved email need administrator-assisted recovery.</p>}
-    {target && !notice && <button type="button" className="secondary" disabled={busy} onClick={onRequestNew}>Request a new reset link</button>}
+    {step === "request" && <p>Older accounts without a saved email need administrator-assisted recovery.</p>}
+    {step !== "request" && <button type="button" className="secondary" disabled={busy} onClick={requestNew}>Request a new code or link</button>}
     <button type="button" className="secondary" disabled={busy} onClick={onBack}>Back to sign in</button>
   </main>;
 }

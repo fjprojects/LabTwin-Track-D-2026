@@ -140,7 +140,7 @@ class DeploymentTests(SimpleTestCase):
         self.assertNotIn(settings.SECRET_KEY, response.content.decode())
 
     def test_password_reset_preserves_private_deployment_gate(self):
-        for path in ("/api/auth/password-reset/", "/api/auth/password-reset/confirm/"):
+        for path in ("/api/auth/password-reset/", "/api/auth/password-reset/confirm/", "/api/auth/password-reset/otp/verify/"):
             response = self.client.post(path, {"email": "absent@example.test"}, content_type="application/json", secure=True)
             self.assertEqual(response.status_code, 401)
             self.assertIn("Private demo access", response.json()["error"])

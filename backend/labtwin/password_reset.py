@@ -1,6 +1,7 @@
 """Email recovery for the existing User/Account/bearer authentication."""
 import json
 import logging
+import uuid
 from threading import BoundedSemaphore, Thread
 from urllib.parse import urlsplit
 
@@ -17,6 +18,7 @@ from django.http import JsonResponse
 from django.utils.crypto import salted_hmac
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
+from django.utils import timezone
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 from django.middleware.csrf import get_token
 from django.views.decorators.debug import sensitive_post_parameters, sensitive_variables
@@ -151,7 +153,11 @@ def request_reset(request):
     if request.method == "GET":
         return reply({"csrf_token": get_token(request)})
     try:
-        email = payload(request).get("email", "")
+        data = payload(request)
+        email = data.get("email", "")
+        method = data.get("method", "link")
+        if method not in ("link", "otp"):
+            raise ValueError()
         if not isinstance(email, str) or len(email) > 254:
             raise ValueError()
         email = email.strip()
@@ -160,11 +166,19 @@ def request_reset(request):
         return reply({"error": "Enter a valid email address."}, 400)
     if not delivery_ready():
         return reply({"error": UNAVAILABLE}, 503)
-    if (rate_allowed("reset-request-ip", request.META.get("REMOTE_ADDR", ""), 20, 900)
-            and rate_allowed("reset-request-email", email.casefold(), 3, 900)):
+    from . import password_otp
+    identity, issued_at = uuid.uuid4(), timezone.now()
+    allowed = (rate_allowed("reset-request-ip", request.META.get("REMOTE_ADDR", ""), 20, 900)
+               and rate_allowed("reset-request-email", email.casefold(), 3, 900))
+    if allowed:
         # No account lookup is performed in this HTTP response path.
-        if not schedule_delivery(send_reset, email):
+        action, value = (password_otp.send_otp, (email, identity, issued_at)) if method == "otp" else (send_reset, email)
+        if not schedule_delivery(action, value):
             return reply({"error": "Password reset delivery is temporarily busy. Please try again later."}, 503)
+    elif method == "otp":
+        return reply({"error": "Too many recovery requests. Please try again later."}, 429)
+    if method == "otp":
+        return reply({"message": password_otp.REQUEST_MESSAGE, "request_id": str(identity), "expires_in": password_otp.OTP_TIMEOUT})
     return reply({"message": REQUEST_MESSAGE})
 
 

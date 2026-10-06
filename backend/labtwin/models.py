@@ -206,6 +206,18 @@ class AccessToken(models.Model):
     expires_at = models.DateTimeField()
 
 
+class PasswordResetOTP(models.Model):
+    # One replaceable challenge per existing account; no plaintext OTP is saved.
+    account = models.OneToOneField(Account, on_delete=models.CASCADE, related_name='password_reset_otp')
+    request_id = models.UUIDField(db_index=True)
+    code_digest = models.CharField(max_length=64)
+    state_digest = models.CharField(max_length=64)
+    issued_at = models.DateTimeField()
+    expires_at = models.DateTimeField()
+    attempts = models.PositiveSmallIntegerField(default=0)
+    consumed_at = models.DateTimeField(null=True, blank=True)
+
+
 class Classroom(models.Model):
     teacher = models.ForeignKey(Account, on_delete=models.CASCADE, related_name='classrooms')
     name = models.CharField(max_length=120)

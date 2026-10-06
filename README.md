@@ -231,7 +231,8 @@ See [the 17-step demo guide](docs/DEMO_GUIDE.md). A teacher selects **Demo Mode 
 ## Password recovery
 
 The existing login includes **Forgot password?** with registered-email recovery,
-30-minute single-use links and existing-session revocation. Roles and learning
+eight-digit email OTPs (10-minute expiry, five attempts), optional 30-minute
+single-use reset links and existing-session revocation. Roles and learning
 records retain their identities. Email sending requires your encrypted SMTP
 credentials and verified sender; it is disabled by default and has no public
 reset-link fallback. Legacy accounts without a saved email require verified

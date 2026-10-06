@@ -7,10 +7,13 @@ accounts. Django already stores `User.email`; no data migration is needed.
 ## Student and teacher workflow
 
 1. Open the existing login page and select **Forgot password?**.
-2. Enter the email saved on the account. Eligible active LabTwin accounts receive
-   a private email. Known, unknown and inactive addresses get identical responses.
-3. Open the emailed HTTPS link. For the private demo, first complete its separate
-   deployment-password gate if prompted. That gate remains enforced.
+2. Enter the email saved on the account. **Email OTP** is the default method;
+   **Email reset link** remains available. Eligible active LabTwin accounts
+   receive a private email. Known, unknown and inactive addresses get identical
+   request messages; rate limiting is independent of account existence.
+3. For OTP, enter the eight-digit email code in the same form, then set your
+   password. For a reset link, open the emailed HTTPS link. The private demo
+   still requires its separate deployment-password gate; neither method unlocks it.
 4. Set and confirm the new password. Django's existing password validators apply.
 5. Sign in normally with the original username and new password. Existing bearer
    sessions, including signed material links derived from them, are revoked.
@@ -25,6 +28,31 @@ account/database that was already lost by temporary hosting.
 
 ## Security and failure behavior
 
+- Email OTPs use cryptographically random eight-digit codes, expire **10 minutes
+  after the request**, allow **five verification attempts**, and work once.
+  Leading zeroes are preserved. Resends replace the previous code; even an older
+  queued mail job cannot replace a newer request. Code and request identity must
+  both match. OTPs and verified reset credentials stay in component memory, so
+  reloading the form requires a new request.
+- `PasswordResetOTP` stores at most one challenge per account, with an HMAC-SHA256
+  code digest keyed by the server secret, an expiry, attempt counter and consumed
+  state. Neither plaintext codes nor passwords are stored there. Password/email/
+  login changes invalidate unverified challenges. Migration `0010` creates only
+  this table; existing user/classroom/course/material data is not rewritten.
+- POST `/api/auth/password-reset/` accepts `method: "otp"` or `method: "link"`.
+  Clients omitting `method` retain the existing link behavior. OTP requests return
+  only a random request identity and uniform message, never a code or account ID.
+  POST `/api/auth/password-reset/otp/verify/` accepts `request_id` and `code`.
+  Only valid proof returns a reset-only Django uid/token for the existing confirm
+  endpoint. Verification never creates a bearer token, logs in or changes roles.
+  The verified credential expires after 30 minutes and must still pass the
+  existing atomic single-use password-change checks.
+- OTP attempt claims and consumption are transactional, including on SQLite.
+  If one email belongs to multiple existing accounts, separate per-account codes
+  are emailed with usernames; attempts cannot unlock an exhausted sibling account.
+  OTP verification is additionally limited to 30 requests per remote address per
+  15 minutes. OTP requests over the existing email/IP limits return a clear 429
+  for known and unknown addresses alike, without pretending a new code was sent.
 - Reuses Django `PasswordResetTokenGenerator` and `SetPasswordForm`. Links expire
   after **30 minutes** (`PASSWORD_RESET_TIMEOUT=1800`). Changing the password
   invalidates the used link and other outstanding links for that user.
@@ -40,19 +68,20 @@ account/database that was already lost by temporary hosting.
   are not trusted. Use a shared cache before scaling beyond one application
   worker. The current default local cache resets on process restart, and the
   proxy's remote address can be shared by users. Neither is account evidence.
-- Both mutations require CSRF. GET `/api/auth/password-reset/` supplies a masked
+- All recovery mutations require CSRF. GET `/api/auth/password-reset/` supplies a masked
   CSRF token; POST there requests email. POST
   `/api/auth/password-reset/confirm/` submits uid/token/new_password1/new_password2.
   Password reset endpoints remain behind the private deployment gate.
-- Tokens occur only in the private email and frontend URL fragment, not HTTP
-  query strings. The private gate temporarily keeps a validated reset fragment
+- Email-link tokens occur in the private email and frontend URL fragment, not HTTP
+  query strings. Verified OTP proof returns a reset-only token through its protected
+  POST response, never a URL. The private gate temporarily keeps a validated reset fragment
   in that tab's session storage. The frontend consumes it and clears that entry
   and the browser fragment. Refreshing the form requires reopening the email.
   Do not save those private links in reports, repositories or screenshots.
 - Responses are no-store/no-referrer. Logs contain only generic failure types,
   never provider exception text, recipient addresses or reset links.
 - Successful resets send a password-change notification without the password
-  or another reset token. Failed delivery never changes an account's password.
+  or another reset token. Failed code/link delivery never changes an account's password.
   There is no automatic sign-in or new privileged session after recovery.
 
 The bounded mail dispatcher is not a durable job queue: a server restart can
@@ -113,6 +142,12 @@ responses, deferred lookup, trusted links, missing email configuration, unsafe
 backends, legacy/new email registration, expiry, replay, cross-user tampering,
 weak passwords, role/data preservation, all-session revocation, CSRF, bounded
 delivery, sanitized provider failures and transactional rollback.
+
+`labtwin.test_password_otp` additionally covers uniform requests, deferred lookup,
+leading zeroes, digest-only storage, expiry, five-attempt boundaries, resend/job
+ordering, replay, account-state changes, same-email accounts, role/learning-data
+preservation, CSRF, provider failure and database rollback. Email delivery is
+tested in memory; it does not verify a real external inbox.
 
 Run the existing frontend camera/API tests, plus `npm run test:auth`, build and
 lint. Run the two deployment suites separately as documented in

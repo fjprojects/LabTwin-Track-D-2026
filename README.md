@@ -235,9 +235,13 @@ eight-digit email OTPs (10-minute expiry, five attempts), optional 30-minute
 single-use reset links and existing-session revocation. Roles and learning
 records retain their identities. Email sending requires your encrypted SMTP
 credentials and verified sender; it is disabled by default and has no public
-reset-link fallback. Legacy accounts without a saved email require verified
-administrator assistance. See [password recovery setup and tests](docs/PASSWORD_RECOVERY.md),
-including the current Free Render storage/SMTP constraints.
+reset-link fallback. Optional **Phone OTP** uses Twilio Verify: signed-in users
+first verify a number from **Recovery phone**, then use it for a future reset.
+SMS sending is disabled until your own server-side provider credentials are
+configured. Accounts without a saved email or previously verified phone require
+verified administrator assistance. See [email recovery setup](docs/PASSWORD_RECOVERY.md)
+and [phone OTP setup and security tests](docs/PHONE_OTP.md), including the current
+Free Render storage/SMTP constraints.
 
 ## Testing
 

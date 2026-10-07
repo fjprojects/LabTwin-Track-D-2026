@@ -1,5 +1,9 @@
 # Password recovery
 
+Optional verified-phone recovery is documented in [PHONE_OTP.md](PHONE_OTP.md).
+The email flows below remain available; phone delivery has separate server-side
+Twilio configuration and requires an already verified recovery phone.
+
 This extends the existing Django User / LabTwin Account / bearer authentication.
 It does not replace users, reset roles or migrate classrooms/materials to new
 accounts. Django already stores `User.email`; no data migration is needed.

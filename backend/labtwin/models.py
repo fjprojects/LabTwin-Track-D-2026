@@ -218,6 +218,30 @@ class PasswordResetOTP(models.Model):
     consumed_at = models.DateTimeField(null=True, blank=True)
 
 
+class RecoveryPhone(models.Model):
+    # A number becomes a recovery credential only after authenticated SMS proof.
+    account = models.OneToOneField(Account, on_delete=models.CASCADE, related_name='recovery_phone')
+    number = models.CharField(max_length=16, unique=True)
+    verified_at = models.DateTimeField()
+
+
+class PhoneOTP(models.Model):
+    account = models.ForeignKey(Account, on_delete=models.CASCADE, related_name='phone_challenges')
+    purpose = models.CharField(max_length=10, choices=[('bind', 'Bind phone'), ('reset', 'Reset password')])
+    request_id = models.UUIDField(unique=True)
+    number = models.CharField(max_length=16)
+    state_digest = models.CharField(max_length=64)
+    verification_sid = models.CharField(max_length=34, blank=True)
+    status = models.CharField(max_length=10, default='queued')
+    issued_at = models.DateTimeField()
+    expires_at = models.DateTimeField()
+    attempts = models.PositiveSmallIntegerField(default=0)
+    consumed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['account', 'purpose'], name='unique_phone_otp_purpose')]
+
+
 class Classroom(models.Model):
     teacher = models.ForeignKey(Account, on_delete=models.CASCADE, related_name='classrooms')
     name = models.CharField(max_length=120)

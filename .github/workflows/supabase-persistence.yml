@@ -1,0 +1,45 @@
+name: Supabase persistence checks (offline)
+
+on:
+  push:
+    branches:
+      - feature/supabase-durable-storage-20261010
+  pull_request:
+    paths:
+      - 'deployment/persistence.py'
+      - 'deployment/test_persistence.py'
+      - 'backend/labtwin/learning/cloud_storage.py'
+      - 'backend/labtwin/learning_models.py'
+      - 'deployment/settings.py'
+      - 'deployment/start.py'
+      - 'requirements-render.txt'
+      - '.github/workflows/supabase-persistence.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  persistence-offline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install minimal dependencies (no production secrets)
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install 'Django>=6.0,<6.1' 'boto3>=1.35,<2' 'psycopg[binary]>=3.2,<4'
+      - name: Validate Django model configuration and persistence adapter
+        env:
+          PYTHONPATH: .:backend
+          DJANGO_SETTINGS_MODULE: backend.test_settings
+        run: |
+          python backend/manage.py check --settings=backend.test_settings
+          python backend/manage.py test deployment.test_persistence --settings=backend.test_settings --noinput
+          python backend/manage.py makemigrations --check --dry-run --settings=backend.test_settings
+      - name: Compile changed Python modules
+        run: |
+          python -m py_compile deployment/persistence.py deployment/settings.py deployment/start.py deployment/test_persistence.py backend/labtwin/learning/cloud_storage.py backend/labtwin/management/commands/restore_course_vectors.py

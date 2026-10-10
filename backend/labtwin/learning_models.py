@@ -19,6 +19,9 @@ class PrivateLearningStorage(FileSystemStorage):
 
 
 def private_learning_storage():
+    if getattr(settings, "LABTWIN_SUPABASE_STORAGE_ENABLED", False):
+        from .learning.cloud_storage import SupabasePrivateStorage
+        return SupabasePrivateStorage()
     return PrivateLearningStorage()
 
 

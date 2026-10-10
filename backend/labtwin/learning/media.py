@@ -61,7 +61,11 @@ def private_media(request, material_id, unit_id=None):
         unit = material.units.filter(pk=unit_id).first() if unit_id else None
         if unit_id and (not unit or not unit.visual_file):
             return HttpResponse(status=404)
-        path = Path(unit.visual_file.path if unit else material.file.path)
+        try:
+            path = Path(unit.visual_file.path if unit else material.file.path)
+        except Exception:
+            # Never reveal storage credentials, provider responses or file paths.
+            return JsonResponse({"error": "The private source is temporarily unavailable. Retry shortly."}, status=503)
         if not path.exists():
             return JsonResponse({"error": "The source file is unavailable."}, status=404)
         size, start, end, status = path.stat().st_size, 0, path.stat().st_size - 1, 200

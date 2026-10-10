@@ -1,0 +1,150 @@
+name: Manually verify Supabase connectivity (read-only)
+
+on:
+  push:
+    branches:
+      - feature/supabase-durable-storage-20261010
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  supabase-connection:
+    # Do not read secrets on ordinary pushes. Trigger only by an intentional
+    # commit whose message contains [verify-supabase].
+    if: contains(github.event.head_commit.message, '[verify-supabase]') || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout candidate
+        uses: actions/checkout@v4
+      - name: Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install read-only test dependencies
+        run: |
+          python -m pip install --disable-pip-version-check --no-input "Django>=6.0,<6.1" "psycopg[binary]>=3.2,<4" "boto3>=1.35,<2"
+      - name: Read-only PostgreSQL and private bucket checks
+        env:
+          LABTWIN_TEST_DATABASE_URL: ${{ secrets.LABTWIN_TEST_DATABASE_URL }}
+          LABTWIN_TEST_S3_ACCESS_KEY_ID: ${{ secrets.LABTWIN_TEST_S3_ACCESS_KEY_ID }}
+          LABTWIN_TEST_S3_SECRET_ACCESS_KEY: ${{ secrets.LABTWIN_TEST_S3_SECRET_ACCESS_KEY }}
+        run: |
+          python - <<'PY'
+          import os
+          import sys
+
+          required = ("LABTWIN_TEST_DATABASE_URL", "LABTWIN_TEST_S3_ACCESS_KEY_ID", "LABTWIN_TEST_S3_SECRET_ACCESS_KEY")
+          if any(not os.getenv(name) for name in required):
+              print("Check blocked: one or more required GitHub Actions secrets are missing.")
+              sys.exit(1)
+
+          from deployment.persistence import postgres_database
+          import socket
+          passed = True
+          for name, hostname, port in (
+              ("Pooler", "aws-0-ap-south-1.pooler.supabase.com", 5432),
+              ("S3", "khnzpwcbmsrdtaqotrqm.storage.supabase.co", 443),
+          ):
+              try:
+                  socket.getaddrinfo(hostname, port)
+                  print(name + " DNS: PASS.")
+                  with socket.create_connection((hostname, port), timeout=6):
+                      print(name + " TCP port: PASS.")
+              except OSError as error:
+                  print(name + " DNS: FAILED (" + type(error).__name__ + ").")
+          
+          try:
+              import psycopg
+              config = postgres_database(os.environ["LABTWIN_TEST_DATABASE_URL"])
+              # Validation-only, explicitly read-only PostgreSQL session.
+              with psycopg.connect(
+                  dbname=config["NAME"], host=config["HOST"], port=config["PORT"],
+                  user=config["USER"], password=config["PASSWORD"],
+                  connect_timeout=10, sslmode=config["OPTIONS"]["sslmode"],
+              ) as connection:
+                  with connection.cursor() as cursor:
+                      cursor.execute("SET TRANSACTION READ ONLY")
+                      cursor.execute("SELECT current_database()")
+                      if cursor.fetchone()[0] != "postgres":
+                          raise ValueError("Unexpected database.")
+              print("PostgreSQL Session Pooler connectivity: PASS (read-only).")
+          except Exception as error:
+              # Classify the cause without echoing provider errors or secrets.
+              reason = str(error).lower()
+              if "password authentication failed" in reason or "invalid password" in reason:
+                  category = "Database password or username rejected"
+              elif "tenant or user not found" in reason:
+                  category = "Pooler account or project not recognized"
+              elif "connection refused" in reason:
+                  category = "Pooler refused the connection"
+              elif "network is unreachable" in reason or "no route to host" in reason:
+                  category = "Pooler network route unavailable"
+              elif "ssl" in reason or "certificate" in reason:
+                  category = "Pooler TLS or certificate problem"
+              elif "server closed the connection" in reason or "connection closed" in reason:
+                  category = "Pooler closed connection"
+              elif "no pg_hba.conf entry" in reason:
+                  category = "Pooler host authorization rejected"
+              elif "temporary failure in name resolution" in reason:
+                  category = "Pooler DNS temporarily unavailable"
+              elif "timed out" in reason or "timeout" in reason:
+                  category = "Network timeout to database"
+              elif "could not translate host" in reason or "name or service not known" in reason:
+                  category = "Database DNS lookup failed"
+              else:
+                  category = "Unclassified database connection error"
+              sqlstate = getattr(error, "sqlstate", None)
+              if sqlstate is None and hasattr(error, "diag"):
+                  sqlstate = getattr(error.diag, "sqlstate", None)
+              if not isinstance(sqlstate, str) or len(sqlstate) != 5 or not sqlstate.isalnum():
+                  sqlstate = "none"
+              hints = [tag for tag, phrase in (
+                  ("auth", "auth"), ("password", "password"), ("fatal", "fatal"),
+                  ("user", "user"), ("tenant", "tenant"), ("unreachable", "unreachable"),
+                  ("connection", "connection"), ("server", "server"),
+                  ("refused", "refused"), ("closed", "closed"),
+                  ("retry", "retry"), ("limit", "limit"),
+                  ("proxy", "proxy"), ("ssl", "ssl"), ("permit", "permit"),
+                  ("route", "route"), ("pool", "pool"), ("reset", "reset"),
+              ) if phrase in reason]
+              print("PostgreSQL connectivity: FAILED (" + category + ", " + type(error).__name__ + ", state=" + sqlstate + ", hints=" + ",".join(hints) + ").")
+              passed = False
+
+          try:
+              import boto3
+              from botocore.config import Config
+              client = boto3.client(
+                  "s3",
+                  endpoint_url="https://khnzpwcbmsrdtaqotrqm.storage.supabase.co/storage/v1/s3",
+                  region_name="ap-south-1",
+                  aws_access_key_id=os.environ["LABTWIN_TEST_S3_ACCESS_KEY_ID"],
+                  aws_secret_access_key=os.environ["LABTWIN_TEST_S3_SECRET_ACCESS_KEY"],
+                  config=Config(signature_version="s3v4", s3={"addressing_style": "path"},
+                                connect_timeout=10, read_timeout=20,
+                                retries={"mode": "standard", "max_attempts": 1}),
+              )
+              # List only up to one entry; do not print names or private data.
+              client.list_objects_v2(Bucket="labtwin-private-materials", MaxKeys=1)
+              print("Private Supabase S3 bucket connectivity: PASS (read-only).")
+          except Exception as error:
+              from botocore.exceptions import ClientError
+              code = ""
+              if isinstance(error, ClientError):
+                  code = str(error.response.get("Error", {}).get("Code", ""))
+              category = (
+                  "AccessDenied" if code in ("AccessDenied", "403", "InvalidAccessKeyId", "SignatureDoesNotMatch")
+                  else "BucketNotFound" if code in ("NoSuchBucket", "404")
+                  else "NetworkOrS3Error"
+              )
+              # Error codes are identifiers, not provider error messages.
+              import re
+              safe_code = code if re.fullmatch(r"[A-Za-z0-9_-]{1,40}", code) else "unknown"
+              status = error.response.get("ResponseMetadata", {}).get("HTTPStatusCode") if isinstance(error, ClientError) else None
+              http_status = str(status) if isinstance(status, int) and 100 <= status <= 599 else "unknown"
+              print("Private bucket connectivity: FAILED (" + category + ", " + type(error).__name__ + ", code=" + safe_code + ", http=" + http_status + ").")
+              passed = False
+          sys.exit(0 if passed else 1)
+          PY

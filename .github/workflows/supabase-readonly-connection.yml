@@ -42,7 +42,19 @@ jobs:
               sys.exit(1)
 
           from deployment.persistence import postgres_database
+          import socket
+          from urllib.parse import urlsplit
           passed = True
+          for name, hostname, port in (
+              ("Pooler", "aws-0-ap-south-1.pooler.supabase.com", 5432),
+              ("S3", "khnzpwcbmsrdtaqotrqm.storage.supabase.co", 443),
+          ):
+              try:
+                  socket.getaddrinfo(hostname, port)
+                  print(name + " DNS: PASS.")
+              except OSError as error:
+                  print(name + " DNS: FAILED (" + type(error).__name__ + ").")
+          
           try:
               import psycopg
               config = postgres_database(os.environ["LABTWIN_TEST_DATABASE_URL"])
@@ -67,13 +79,23 @@ jobs:
                   category = "Pooler account or project not recognized"
               elif "connection refused" in reason:
                   category = "Pooler refused the connection"
+              elif "network is unreachable" in reason or "no route to host" in reason:
+                  category = "Pooler network route unavailable"
+              elif "ssl" in reason or "certificate" in reason:
+                  category = "Pooler TLS or certificate problem"
+              elif "server closed the connection" in reason or "connection closed" in reason:
+                  category = "Pooler closed connection"
+              elif "no pg_hba.conf entry" in reason:
+                  category = "Pooler host authorization rejected"
+              elif "temporary failure in name resolution" in reason:
+                  category = "Pooler DNS temporarily unavailable"
               elif "timed out" in reason or "timeout" in reason:
                   category = "Network timeout to database"
               elif "could not translate host" in reason or "name or service not known" in reason:
                   category = "Database DNS lookup failed"
               else:
                   category = "Unclassified database connection error"
-              print("PostgreSQL connectivity: FAILED (" + category + ").")
+              print("PostgreSQL connectivity: FAILED (" + category + ", " + type(error).__name__ + ").")
               passed = False
 
           try:
@@ -102,7 +124,7 @@ jobs:
                   else "BucketNotFound" if code in ("NoSuchBucket", "404")
                   else "NetworkOrS3Error"
               )
-              print("Private bucket connectivity: FAILED (" + category + ").")
+              print("Private bucket connectivity: FAILED (" + category + ", " + type(error).__name__ + ").")
               passed = False
           sys.exit(0 if passed else 1)
           PY

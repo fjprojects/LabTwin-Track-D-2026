@@ -30,6 +30,13 @@ def main():
     subprocess.run([*manage, "migrate", "--noinput"], check=True)
     subprocess.run([*manage, "collectstatic", "--noinput"], check=True)
     subprocess.run([*manage, "check", "--deploy"], check=True)
+    if getattr(settings, "LABTWIN_SUPABASE_STORAGE_ENABLED", False):
+        # Chroma is disposable on Render Free. The source text and embeddings
+        # are already durable in PostgreSQL; hydrate the local index on boot.
+        try:
+            subprocess.run([*manage, "restore_course_vectors"], check=True, timeout=180)
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
+            print("Vector cache restoration unavailable; SQL-grounded retrieval remains enabled.", file=sys.stderr)
     os.execv(sys.executable, [sys.executable, "-m", "gunicorn", "backend.wsgi:application",
         "--bind", "0.0.0.0:" + os.getenv("PORT", "10000"), "--workers", "1", "--threads", "2",
         "--timeout", "180", "--error-logfile", "-"])

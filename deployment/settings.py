@@ -52,6 +52,34 @@ X_FRAME_OPTIONS = "DENY"
 LABTWIN_PROJECT_ROOT = Path(__file__).resolve().parents[1]
 LABTWIN_DATA_DIR = Path(os.environ.get("LABTWIN_DATA_DIR", "/data"))
 DATABASES = {"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": LABTWIN_DATA_DIR / "db.sqlite3"}}
+# Enable both durable services together, never an incomplete split-brain setup.
+LABTWIN_SUPABASE_STORAGE_ENABLED = False
+_database_url = os.getenv("LABTWIN_DATABASE_URL", "").strip()
+_s3_keys = (
+    "LABTWIN_S3_ENDPOINT", "LABTWIN_S3_REGION", "LABTWIN_S3_BUCKET",
+    "LABTWIN_S3_ACCESS_KEY_ID", "LABTWIN_S3_SECRET_ACCESS_KEY",
+)
+if _database_url:
+    from deployment.persistence import postgres_database, s3_endpoint
+    DATABASES = {"default": postgres_database(_database_url)}
+    missing = [name for name in _s3_keys if not os.getenv(name, "").strip()]
+    if missing:
+        raise ImproperlyConfigured(
+            "Supabase mode requires complete private S3 credentials and bucket configuration."
+        )
+    LABTWIN_S3_ENDPOINT = s3_endpoint(os.environ["LABTWIN_S3_ENDPOINT"])
+    LABTWIN_S3_REGION = os.environ["LABTWIN_S3_REGION"]
+    LABTWIN_S3_BUCKET = os.environ["LABTWIN_S3_BUCKET"]
+    LABTWIN_S3_ACCESS_KEY_ID = os.environ["LABTWIN_S3_ACCESS_KEY_ID"]
+    LABTWIN_S3_SECRET_ACCESS_KEY = os.environ["LABTWIN_S3_SECRET_ACCESS_KEY"]
+    if LABTWIN_S3_BUCKET != "labtwin-private-materials":
+        raise ImproperlyConfigured("Select the approved private LabTwin storage bucket.")
+    LABTWIN_SUPABASE_STORAGE_ENABLED = True
+    # Supabase Free has a 50 MB per-object limit.
+    LABTWIN_UPLOAD_MAX_BYTES = min(LABTWIN_UPLOAD_MAX_BYTES, 50 * 1024 * 1024)
+elif any(os.getenv(name, "").strip() for name in _s3_keys):
+    raise ImproperlyConfigured("Cloud storage credentials require LABTWIN_DATABASE_URL.")
+
 LABTWIN_MEDIA_ROOT = LABTWIN_DATA_DIR / "private_learning"
 LABTWIN_VECTOR_ROOT = LABTWIN_DATA_DIR / "learning_vectors"
 LABTWIN_FRONTEND_ROOT = LABTWIN_PROJECT_ROOT / "frontend" / "dist"

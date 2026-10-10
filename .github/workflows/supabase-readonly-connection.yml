@@ -42,6 +42,7 @@ jobs:
               sys.exit(1)
 
           from deployment.persistence import postgres_database
+          passed = True
           try:
               import psycopg
               config = postgres_database(os.environ["LABTWIN_TEST_DATABASE_URL"])
@@ -58,8 +59,22 @@ jobs:
                           raise ValueError("Unexpected database.")
               print("PostgreSQL Session Pooler connectivity: PASS (read-only).")
           except Exception as error:
-              print("PostgreSQL connectivity: FAILED (" + type(error).__name__ + ").")
-              sys.exit(1)
+              # Classify the cause without echoing provider errors or secrets.
+              reason = str(error).lower()
+              if "password authentication failed" in reason or "invalid password" in reason:
+                  category = "Database password or username rejected"
+              elif "tenant or user not found" in reason:
+                  category = "Pooler account or project not recognized"
+              elif "connection refused" in reason:
+                  category = "Pooler refused the connection"
+              elif "timed out" in reason or "timeout" in reason:
+                  category = "Network timeout to database"
+              elif "could not translate host" in reason or "name or service not known" in reason:
+                  category = "Database DNS lookup failed"
+              else:
+                  category = "Unclassified database connection error"
+              print("PostgreSQL connectivity: FAILED (" + category + ").")
+              passed = False
 
           try:
               import boto3
@@ -78,6 +93,16 @@ jobs:
               client.list_objects_v2(Bucket="labtwin-private-materials", MaxKeys=1)
               print("Private Supabase S3 bucket connectivity: PASS (read-only).")
           except Exception as error:
-              print("Private bucket connectivity: FAILED (" + type(error).__name__ + ").")
-              sys.exit(1)
+              from botocore.exceptions import ClientError
+              code = ""
+              if isinstance(error, ClientError):
+                  code = str(error.response.get("Error", {}).get("Code", ""))
+              category = (
+                  "AccessDenied" if code in ("AccessDenied", "403", "InvalidAccessKeyId", "SignatureDoesNotMatch")
+                  else "BucketNotFound" if code in ("NoSuchBucket", "404")
+                  else "NetworkOrS3Error"
+              )
+              print("Private bucket connectivity: FAILED (" + category + ").")
+              passed = False
+          sys.exit(0 if passed else 1)
           PY

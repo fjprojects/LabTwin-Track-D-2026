@@ -64,6 +64,35 @@ class PrivateMaterialStorageTests(SimpleTestCase):
             self.assertEqual(Path(self.storage.path("course_1/abc.pdf")).read_bytes(), payload)
             self.assertEqual(opened.call_count, 2)
 
+    def test_private_upload_download_delete_without_network(self):
+        class MemoryS3:
+            def __init__(self):
+                self.objects = {}
+
+            def upload_fileobj(self, content, bucket, key):
+                self.objects[(bucket, key)] = content.read()
+
+            def download_fileobj(self, bucket, key, output):
+                output.write(self.objects[(bucket, key)])
+
+            def head_object(self, *, Bucket, Key):
+                return {"ContentLength": len(self.objects[(Bucket, Key)])}
+
+            def delete_object(self, *, Bucket, Key):
+                self.objects.pop((Bucket, Key), None)
+
+        fake = MemoryS3()
+        self.storage.__dict__["client"] = fake
+        with override_settings(LABTWIN_S3_BUCKET="labtwin-private-materials"):
+            name = self.storage._save("course_1/document.pdf", ContentFile(b"pdf original"))
+            self.assertTrue(self.storage.exists(name))
+            self.assertEqual(self.storage.size(name), len(b"pdf original"))
+            with self.storage._open(name) as original:
+                self.assertEqual(original.read(), b"pdf original")
+            self.assertEqual(Path(self.storage.path(name)).read_bytes(), b"pdf original")
+            self.storage.delete(name)
+            self.assertFalse(self.storage._cache_path(name).exists())
+
     def test_never_exposes_public_object_urls(self):
         with self.assertRaises(NotImplementedError):
             self.storage.url("course_1/abc.pdf")

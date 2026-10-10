@@ -43,7 +43,6 @@ jobs:
 
           from deployment.persistence import postgres_database
           import socket
-          from urllib.parse import urlsplit
           passed = True
           for name, hostname, port in (
               ("Pooler", "aws-0-ap-south-1.pooler.supabase.com", 5432),
@@ -52,6 +51,8 @@ jobs:
               try:
                   socket.getaddrinfo(hostname, port)
                   print(name + " DNS: PASS.")
+                  with socket.create_connection((hostname, port), timeout=6):
+                      print(name + " TCP port: PASS.")
               except OSError as error:
                   print(name + " DNS: FAILED (" + type(error).__name__ + ").")
           
@@ -100,7 +101,16 @@ jobs:
                   sqlstate = getattr(error.diag, "sqlstate", None)
               if not isinstance(sqlstate, str) or len(sqlstate) != 5 or not sqlstate.isalnum():
                   sqlstate = "none"
-              print("PostgreSQL connectivity: FAILED (" + category + ", " + type(error).__name__ + ", state=" + sqlstate + ").")
+              hints = [tag for tag, phrase in (
+                  ("auth", "auth"), ("password", "password"), ("fatal", "fatal"),
+                  ("user", "user"), ("tenant", "tenant"), ("unreachable", "unreachable"),
+                  ("connection", "connection"), ("server", "server"),
+                  ("refused", "refused"), ("closed", "closed"),
+                  ("retry", "retry"), ("limit", "limit"),
+                  ("proxy", "proxy"), ("ssl", "ssl"), ("permit", "permit"),
+                  ("route", "route"), ("pool", "pool"), ("reset", "reset"),
+              ) if phrase in reason]
+              print("PostgreSQL connectivity: FAILED (" + category + ", " + type(error).__name__ + ", state=" + sqlstate + ", hints=" + ",".join(hints) + ").")
               passed = False
 
           try:
@@ -132,7 +142,9 @@ jobs:
               # Error codes are identifiers, not provider error messages.
               import re
               safe_code = code if re.fullmatch(r"[A-Za-z0-9_-]{1,40}", code) else "unknown"
-              print("Private bucket connectivity: FAILED (" + category + ", " + type(error).__name__ + ", code=" + safe_code + ").")
+              status = error.response.get("ResponseMetadata", {}).get("HTTPStatusCode") if isinstance(error, ClientError) else None
+              http_status = str(status) if isinstance(status, int) and 100 <= status <= 599 else "unknown"
+              print("Private bucket connectivity: FAILED (" + category + ", " + type(error).__name__ + ", code=" + safe_code + ", http=" + http_status + ").")
               passed = False
           sys.exit(0 if passed else 1)
           PY

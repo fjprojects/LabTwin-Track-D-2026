@@ -1,0 +1,46 @@
+name: Supabase persistence candidate checks
+
+on:
+  push:
+    branches:
+      - feature/supabase-durable-storage-20261010
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-persistence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      DJANGO_SETTINGS_MODULE: backend.settings
+      PYTHONPATH: .:backend
+    steps:
+      - name: Checkout candidate code
+        uses: actions/checkout@v4
+      - name: Use Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install focused test requirements
+        run: |
+          python -m pip install --disable-pip-version-check --no-input \
+            "Django>=6.0,<6.1" django-cors-headers python-dotenv \
+            "boto3>=1.35,<2" "psycopg[binary]>=3.2,<4"
+      - name: Compile new and touched Python modules
+        run: |
+          python -m compileall -q deployment backend/labtwin/learning/cloud_storage.py backend/labtwin/learning_models.py backend/labtwin/management/commands/restore_course_vectors.py
+      - name: Run isolated private storage regressions
+        run: |
+          python - <<'PY'
+          import django
+          import sys
+          import unittest
+          django.setup()
+          suite = unittest.defaultTestLoader.loadTestsFromName("deployment.test_persistence")
+          result = unittest.TextTestRunner(verbosity=2).run(suite)
+          sys.exit(0 if result.wasSuccessful() else 1)
+          PY
+      - name: Check model migrations are unchanged
+        run: python backend/manage.py makemigrations labtwin --check --dry-run --skip-checks

@@ -95,7 +95,12 @@ jobs:
                   category = "Database DNS lookup failed"
               else:
                   category = "Unclassified database connection error"
-              print("PostgreSQL connectivity: FAILED (" + category + ", " + type(error).__name__ + ").")
+              sqlstate = getattr(error, "sqlstate", None)
+              if sqlstate is None and hasattr(error, "diag"):
+                  sqlstate = getattr(error.diag, "sqlstate", None)
+              if not isinstance(sqlstate, str) or len(sqlstate) != 5 or not sqlstate.isalnum():
+                  sqlstate = "none"
+              print("PostgreSQL connectivity: FAILED (" + category + ", " + type(error).__name__ + ", state=" + sqlstate + ").")
               passed = False
 
           try:
@@ -124,7 +129,10 @@ jobs:
                   else "BucketNotFound" if code in ("NoSuchBucket", "404")
                   else "NetworkOrS3Error"
               )
-              print("Private bucket connectivity: FAILED (" + category + ", " + type(error).__name__ + ").")
+              # Error codes are identifiers, not provider error messages.
+              import re
+              safe_code = code if re.fullmatch(r"[A-Za-z0-9_-]{1,40}", code) else "unknown"
+              print("Private bucket connectivity: FAILED (" + category + ", " + type(error).__name__ + ", code=" + safe_code + ").")
               passed = False
           sys.exit(0 if passed else 1)
           PY

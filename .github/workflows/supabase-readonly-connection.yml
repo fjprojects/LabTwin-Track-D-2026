@@ -1,6 +1,9 @@
 name: Manually verify Supabase connectivity (read-only)
 
 on:
+  push:
+    branches:
+      - feature/supabase-durable-storage-20261010
   workflow_dispatch:
 
 permissions:
@@ -8,6 +11,9 @@ permissions:
 
 jobs:
   supabase-connection:
+    # Do not read secrets on ordinary pushes. Trigger only by an intentional
+    # commit whose message contains [verify-supabase].
+    if: contains(github.event.head_commit.message, '[verify-supabase]') || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:

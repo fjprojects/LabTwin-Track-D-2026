@@ -50,9 +50,9 @@ jobs:
                   dbname=config["NAME"], host=config["HOST"], port=config["PORT"],
                   user=config["USER"], password=config["PASSWORD"],
                   connect_timeout=10, sslmode=config["OPTIONS"]["sslmode"],
-                  options="-c default_transaction_read_only=on",
               ) as connection:
                   with connection.cursor() as cursor:
+                      cursor.execute("SET TRANSACTION READ ONLY")
                       cursor.execute("SELECT current_database()")
                       if cursor.fetchone()[0] != "postgres":
                           raise ValueError("Unexpected database.")

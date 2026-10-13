@@ -70,6 +70,11 @@ jobs:
                       cursor.execute("SELECT current_database()")
                       if cursor.fetchone()[0] != "postgres":
                           raise ValueError("Unexpected database.")
+                      cursor.execute("SELECT to_regclass('public.auth_user') IS NOT NULL, to_regclass('public.labtwin_account') IS NOT NULL, to_regclass('public.labtwin_practiceattempt') IS NOT NULL")
+                      tables = cursor.fetchone()
+                      print("LabTwin auth_user table present: " + ("YES" if tables[0] else "NO"))
+                      print("LabTwin account table present: " + ("YES" if tables[1] else "NO"))
+                      print("LabTwin practice attempts table present: " + ("YES" if tables[2] else "NO"))
               print("PostgreSQL Session Pooler connectivity: PASS (read-only).")
           except Exception as error:
               # Classify the cause without echoing provider errors or secrets.

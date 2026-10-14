@@ -65,6 +65,12 @@ def verify(values, course, teacher_reviewed=False):
         checks["answer_key"] = isinstance(options, list) and 2 <= len(options) <= 8 and all(isinstance(option, str) and option.strip() for option in options) and type(index) is int and 0 <= index < len(options) and len(set(map(normalized, options))) == len(options)
         if checks["answer_key"] and not teacher_reviewed:
             checks["answer_key"] = normalized(options[index]) == normalized(quote)
+            if metadata.get("template") == "concept_mcq":
+                subject = metadata.get("subject")
+                checks["answer_key"] = bool(checks["answer_key"] and isinstance(subject, str)
+                    and 3 <= len(subject.strip()) <= 70
+                    and normalized(subject) in normalized(options[index])
+                    and all(normalized(subject) not in normalized(option) for i, option in enumerate(options) if i != index))
     elif kind == "short_answer":
         accepted = answer.get("accepted", [])
         checks["answer_key"] = isinstance(accepted, list) and 1 <= len(accepted) <= 10 and all(isinstance(a, str) and a.strip() for a in accepted)
@@ -97,7 +103,7 @@ def verify(values, course, teacher_reviewed=False):
         return {"status": "teacher_reviewed" if checks["answer_key"] and checks["difficulty"] and checks["question"] else "rejected",
                 "method": "teacher_answer_key", "checks": checks}
     template = metadata.get("template")
-    allowed_templates = {"verbatim_mcq": ("quiz", 1), "definition_blank": ("short_answer", 1),
+    allowed_templates = {"verbatim_mcq": ("quiz", 1), "concept_mcq": ("quiz", 1), "definition_blank": ("short_answer", 1),
                          "worked_arithmetic": ("numerical", 2), "diagram_count": ("numerical", 2)}
     deterministic = isinstance(template, str) and allowed_templates.get(template) == (kind, values.get("difficulty"))
     if deterministic and all(checks.values()):

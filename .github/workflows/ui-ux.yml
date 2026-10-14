@@ -20,10 +20,10 @@ jobs:
     timeout-minutes: 25
     env:
       DJANGO_SETTINGS_MODULE: backend.test_settings
-      LABTWIN_E2E_DATABASE: ${{ runner.temp }}/labtwin-ui.sqlite3
-      LABTWIN_E2E_VECTOR_ROOT: ${{ runner.temp }}/labtwin-ui-vectors
-      LABTWIN_UI_SCREENSHOTS: ${{ runner.temp }}/labtwin-ui-screenshots
-      NODE_PATH: ${{ runner.temp }}/labtwin-browser/node_modules
+      LABTWIN_E2E_DATABASE: /tmp/labtwin-ui.sqlite3
+      LABTWIN_E2E_VECTOR_ROOT: /tmp/labtwin-ui-vectors
+      LABTWIN_UI_SCREENSHOTS: /tmp/labtwin-ui-screenshots
+      NODE_PATH: /tmp/labtwin-browser/node_modules
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -56,8 +56,8 @@ jobs:
           python manage.py test labtwin.test_topic_creation labtwin.test_ui_permissions labtwin.test_learning labtwin.test_track_d.TrackDTests.test_conversation_reading_is_not_mastery_but_check_is_scored labtwin.test_track_d.TrackDTests.test_short_open_answer_is_pending_until_authorized_teacher_review labtwin.test_track_d.TrackDTests.test_diagnostic_scope_authorization_report_and_mastery labtwin.test_track_d.TrackDTests.test_verified_three_formats_and_private_keys --settings=backend.test_settings -v 2
       - name: Install browser test runtime
         run: |
-          npm install --prefix "$RUNNER_TEMP/labtwin-browser" --no-save --package-lock=false playwright
-          "$RUNNER_TEMP/labtwin-browser/node_modules/.bin/playwright" install --with-deps chromium
+          npm install --prefix "/tmp/labtwin-browser" --no-save --package-lock=false playwright
+          "/tmp/labtwin-browser/node_modules/.bin/playwright" install --with-deps chromium
       - name: Browser checks at 100 percent CSS zoom
         run: |
           python scripts/e2e_server.py > "$RUNNER_TEMP/labtwin-e2e.log" 2>&1 &
@@ -83,7 +83,7 @@ jobs:
         with:
           name: ui-acceptance-fixtures
           path: |
-            ${{ runner.temp }}/labtwin-ui-screenshots
+            /tmp/labtwin-ui-screenshots
             ${{ runner.temp }}/labtwin-e2e.log
           if-no-files-found: ignore
           retention-days: 7

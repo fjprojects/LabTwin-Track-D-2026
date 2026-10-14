@@ -16,7 +16,7 @@ No backend application files, APIs, database schema, records, uploaded materials
 
 ## Validation
 
-Local frontend lint, production build, 31 frontend tests and 50 backend regressions passed. The expanded browser suite checks full viewport use, readable SVG icons, every navigation page at desktop/laptop/mobile widths, tutor/course panel stacking, sidebar controls, citations, real submissions and saved mastery. Refer to the GitHub Actions result for the final browser verdict and fixture screenshots.
+Local frontend lint, production build, 31 frontend tests and 50 backend regressions passed. The expanded browser suite checks full viewport use, readable SVG icons, every navigation page at desktop/laptop/mobile widths, tutor/course panel stacking, sidebar controls, citations, real submissions and saved mastery. Final result: [GitHub Actions run 38608489840](https://github.com/fjprojects/LabTwin-Track-D-2026/actions/runs/38608489840) passed on code commit `5743962c0cda45de9e818fc100988fc8a1fc606f`, including both browser suites. The run includes screenshots of every navigation page and confirms full viewport width, visible icons, responsive panel stacking, citations, submissions and mastery persistence. The final accessibility correction keeps short-answer labels stable after typing. This documentation-only follow-up does not change the tested application code.
 
 ## Update the Windows frontend
 

@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import api from "../api";
 import { base, get, post, errorText } from "./api";
 import SourceLinks from "./SourceLinks";
-import { topicPayload } from "./topicForm";
+import { topicPayload, duplicateTopicMessage } from "./topicForm";
 
-export function CourseSetup({ courses, onRefresh, onSelect }) {
+export function CourseSetup({ courses, selectedCourseId, onRefresh, onSelect }) {
   const [rooms, setRooms] = useState([]), [form, setForm] = useState({ classroom_id: "", name: "", language: "Python" }), [error, setError] = useState(""), [busy, setBusy] = useState(false);
   useEffect(() => { api.get(base.replace(/\/learning$/, "/classrooms/")).then(({ data }) => setRooms(data.classrooms)).catch(err => setError(errorText(err))); }, []);
   async function create(event) {
@@ -12,17 +12,20 @@ export function CourseSetup({ courses, onRefresh, onSelect }) {
     try { const data = await post("courses/", form); await onRefresh(); onSelect(data.course.id); setForm(previous => ({ ...previous, name: "" })); }
     catch (err) { setError(errorText(err)); } finally { setBusy(false); }
   }
-  return <section className="classroomBox"><h2>Courses in your classrooms</h2><p>A course groups your topics, source materials and adaptive assessments.</p>
+  return <section className="classroomBox courseSetup"><h2>Courses in your classrooms</h2><p>A course groups your topics, source materials and adaptive assessments.</p>
     <form onSubmit={create} className="compactForm"><label>Classroom<select aria-label="Classroom" required value={form.classroom_id} onChange={e => setForm({ ...form, classroom_id: e.target.value })}><option value="">Choose classroom</option>{rooms.map(room => <option key={room.id} value={room.id}>{room.name}</option>)}</select></label><label>Course name<input required maxLength={160} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Data Structures" /></label><label>Lab language<select aria-label="Lab language" value={form.language} onChange={e => setForm({ ...form, language: e.target.value })}>{["Python", "C", "Java"].map(language => <option key={language}>{language}</option>)}</select></label><button disabled={busy || !rooms.length}>Create course</button></form>
     {!rooms.length && <p>Create a classroom from Classes first.</p>}{error && <p role="alert">{error}</p>}
-    <div className="materialGrid">{courses.map(course => <button className="courseCard secondary" key={course.id} onClick={() => onSelect(course.id)}><strong>{course.name}</strong><span>{course.classroom_name} · {course.topics.length} topics · {course.material_count} materials</span></button>)}</div>
+    <div className="materialGrid">{courses.map(course => <button className="courseCard secondary" key={course.id} aria-pressed={course.id === selectedCourseId} onClick={() => onSelect(course.id)}><strong>{course.name}</strong><span>{course.classroom_name} · {course.topics.length} topics · {course.material_count} materials</span></button>)}</div>
   </section>;
 }
 
 export default function CourseMaterials({ course, teacher, onRefresh, onAsk, onSource }) {
   const [materials, setMaterials] = useState([]), [version, setVersion] = useState(0), [detail, setDetail] = useState(null), [error, setError] = useState(""), [busy, setBusy] = useState(false);
   const [upload, setUpload] = useState(null), [topicId, setTopicId] = useState(""), [captions, setCaptions] = useState(""), [topicName, setTopicName] = useState(""), [prerequisite, setPrerequisite] = useState("");
-  const [topicError, setTopicError] = useState("");
+  const [topicError, setTopicError] = useState(""), [topicSuccess, setTopicSuccess] = useState(""), [topicSaving, setTopicSaving] = useState(false), [savedCourse, setSavedCourse] = useState(null);
+  const topics = savedCourse?.id === course.id ? savedCourse.topics : course.topics;
+  const duplicateWarning = duplicateTopicMessage(topicName, topics);
+  useEffect(() => { setSavedCourse(null); }, [course.topics]);
   const topicSubmitting = useRef(false);
   const [search, setSearch] = useState(""); const media = useRef(null), input = useRef(null);
   const refresh = useRef(onRefresh);
@@ -59,23 +62,42 @@ export default function CourseMaterials({ course, teacher, onRefresh, onAsk, onS
   async function addTopic(event) {
     event.preventDefault();
     if (busy || topicSubmitting.current) return;
+    setTopicSuccess("");
     let data;
-    try { data = topicPayload(topicName, prerequisite, course.topics); }
+    try { data = topicPayload(topicName, prerequisite, topics); }
     catch (err) { setTopicError(err.message); return; }
-    topicSubmitting.current = true; setBusy(true); setTopicError("");
-    try { await post(`courses/${course.id}/topics/`, data); setTopicName(""); setPrerequisite(""); await onRefresh(); }
-    catch (err) { setTopicError(errorText(err)); if (err.response?.status === 400) await onRefresh(); }
-    finally { topicSubmitting.current = false; setBusy(false); }
+    topicSubmitting.current = true; setTopicSaving(true); setTopicError("");
+    try {
+      const response = await post(`courses/${course.id}/topics/`, data);
+      setSavedCourse(response.course); setTopicName(""); setPrerequisite("");
+      setTopicSuccess(`Added "${data.name}" to ${course.name}.`);
+      await onRefresh();
+    } catch (err) {
+      const status = err.response?.status;
+      setTopicError(status === 401 ? "Your session has expired. Sign in again before adding a topic." : status === 403 ? "Only the teacher who owns this course can add topics." : errorText(err));
+      if (status === 400) {
+        try { await onRefresh(); } catch { /* Keep the original validation message visible. */ }
+      }
+    } finally { topicSubmitting.current = false; setTopicSaving(false); }
   }
   async function open(item) { try { const data = await get(`materials/${item.id}/`); setDetail(data.material); setSearch(""); } catch (err) { setError(errorText(err)); } }
   async function retry(item) { setBusy(true); setError(""); try { const data = await post(`materials/${item.id}/retry/`, captions.trim() ? { captions: JSON.parse(captions) } : {}); setVersion(v => v + 1); if (data.material.status === "failed") setError(data.material.error); await onRefresh(); } catch (err) { setError(errorText(err)); } finally { setBusy(false); } }
   const units = detail?.units?.filter(unit => !search.trim() || unit.text.toLowerCase().includes(search.toLowerCase())) || [];
-  return <>
-    {teacher && <section className="classroomBox"><h2>Course topics and settings</h2><form className="compactForm" onSubmit={addTopic}><label>New topic<input required maxLength={200} value={topicName} onChange={e => setTopicName(e.target.value)} /></label><label>Prerequisite<select aria-label="Prerequisite" value={prerequisite} onChange={e => setPrerequisite(e.target.value)}><option value="">None</option>{course.topics.map(topic => <option value={topic.id} key={topic.id}>{topic.name}</option>)}</select></label><button disabled={busy}>{topicSubmitting.current ? "Adding topic…" : "Add topic"}</button></form>{topicError && <p role="alert">{topicError}</p>}<p>{course.topics.map(t => t.name).join(" → ") || "Add topics to enable mastery and adaptive practice."}</p>
+  return <div className="courseWorkspace" data-teacher={teacher}>
+    {teacher && <section className="classroomBox topicSettings"><h2>Course topics and settings</h2>
+      <p className="selectedCourse">Selected course: <strong>{course.name}</strong> · {topics.length} existing topics</p>
+      <form className="compactForm topicForm" onSubmit={addTopic} aria-busy={topicSaving}>
+        <label>New topic<input required maxLength={200} disabled={topicSaving} aria-describedby="topic-feedback" aria-invalid={!!(topicError || duplicateWarning)} value={topicName} onChange={e => { setTopicName(e.target.value); setTopicError(""); setTopicSuccess(""); }} /></label>
+        <label>Prerequisite<select aria-label="Prerequisite" disabled={topicSaving} aria-describedby="topic-feedback" value={prerequisite} onChange={e => { setPrerequisite(e.target.value); setTopicError(""); setTopicSuccess(""); }}><option value="">None</option>{topics.map(topic => <option value={topic.id} key={topic.id}>{topic.name}</option>)}</select></label>
+        <button disabled={busy || topicSaving}>{topicSaving ? "Adding topic…" : "Add topic"}</button>
+      </form>
+      <div id="topic-feedback" className="topicFeedback">{(topicError || duplicateWarning) && <p role="alert">{topicError || duplicateWarning}</p>}{topicSuccess && <p role="status" className="saveSuccess">{topicSuccess}</p>}</div>
+      <h3>Existing topics</h3>
+      {topics.length ? <ul className="topicList" aria-label="Existing course topics">{topics.map(topic => <li key={topic.id}><strong>{topic.name}</strong><span>Prerequisites: {topic.prerequisites?.length ? topic.prerequisites.map(id => topics.find(t => t.id === id)?.name || `Topic #${id}`).join(", ") : "None"}</span>{topic.parent_id && <span>Subtopic of: {topics.find(t => t.id === topic.parent_id)?.name || `Topic #${topic.parent_id}`}</span>}</li>)}</ul> : <p>Add topics to enable mastery and adaptive practice.</p>}
       <label className="checkLabel"><input type="checkbox" checked={course.allow_solutions} onChange={async e => { try { await api.patch(`${base}/courses/${course.id}/`, { allow_solutions: e.target.checked }); await onRefresh(); } catch (err) { setError(errorText(err)); } }} />Allow complete practice solutions after coaching</label>
       <label className="checkLabel"><input type="checkbox" checked={course.activity_verification} onChange={async e => { try { await api.patch(`${base}/courses/${course.id}/`, { activity_verification: e.target.checked }); await onRefresh(); } catch (err) { setError(errorText(err)); } }} />Offer fresh conceptual verification questions when assignment activity warrants review</label>
     </section>}
-    <section className="classroomBox"><p className="eyebrow">ONE COURSE KNOWLEDGE BASE</p><h2>{teacher ? "Course Materials" : "Explore your course"}</h2>
+    <section className="classroomBox materialsLibrary"><p className="eyebrow">ONE COURSE KNOWLEDGE BASE</p><h2>{teacher ? "Course Materials" : "Explore your course"}</h2>
       {teacher && <form onSubmit={add}><label>Upload textbook, notes, slides or lecture<input ref={input} required type="file" accept=".pdf,.ppt,.pptx,.txt,.md,.mp4,.webm,.mov,.mkv,.mp3,.wav,.m4a,.ogg,.flac" onChange={e => setUpload(e.target.files[0])} /></label><label>Topic<select aria-label="Topic" value={topicId} onChange={e => setTopicId(e.target.value)}><option value="">Identify from course topics</option>{course.topics.map(topic => <option key={topic.id} value={topic.id}>{topic.name}</option>)}</select></label><details><summary>Optional timestamped lecture captions</summary><label>Caption segments (JSON)<textarea value={captions} onChange={e => setCaptions(e.target.value)} placeholder={'[{"start":0,"end":12,"text":"Teacher explanation…"}]'} /></label><p>Use supplied captions when speech transcription is unavailable. Timestamps are validated against the uploaded lecture.</p></details><button disabled={!upload || busy}>{busy ? "Uploading…" : "Upload course material"}</button><p>PDF and scanned PDF, PPT/PPTX, text, audio and video. Processing continues in the background; check the status below.</p></form>}
       {error && <p role="alert">{error}</p>}
       {!materials.length && <div className="learningEmpty">No course materials yet. {teacher ? "Upload the first resource to enable grounded answers." : "Your teacher can upload resources here."}</div>}
@@ -86,7 +108,7 @@ export default function CourseMaterials({ course, teacher, onRefresh, onAsk, onS
       <button onClick={() => onAsk(detail)}>Ask this lecture / material</button><label>Search within material<input type="search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Binary trees, insertion…" /></label>
       <div className="transcriptList">{units.map(unit => <article key={unit.id}><strong>{unit.page ? `Page ${unit.page}` : unit.slide ? `Slide ${unit.slide}` : unit.start != null ? formatTime(unit.start) : `Section ${unit.number}`}</strong><p>{unit.text}</p><SourceLinks items={unit.source_id ? [{ id: unit.source_id, label: `${detail.title} — ${unit.page ? `Page ${unit.page}` : unit.slide ? `Slide ${unit.slide}` : formatTime(unit.start)}` }] : []} onSource={onSource} />{unit.start != null && <button className="secondary" onClick={() => { media.current.currentTime = unit.start; media.current.play().catch(() => {}); }}>Jump to timestamp</button>}</article>)}</div>
     </section>}
-  </>;
+  </div>;
 }
 
 function formatTime(seconds) { return `${Math.floor((seconds || 0) / 60)}:${String(Math.floor((seconds || 0) % 60)).padStart(2, "0")}`; }

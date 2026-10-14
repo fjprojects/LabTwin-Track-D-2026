@@ -1,0 +1,200 @@
+/* The portal uses the browser viewport; individual workspaces size their own panels. */
+#root:has(.learningShell) {
+  display: block;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.learningShell.classroomPortal {
+  --workspace-border: #dce7e5;
+  --workspace-soft: #f5f9f8;
+  --workspace-ink: #173c35;
+  --workspace-muted: #5e7771;
+  grid-template-columns: clamp(210px, 14vw, 256px) minmax(0, 1fr);
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
+  font: 400 15px/1.55 Inter, "Segoe UI", system-ui, sans-serif;
+}
+
+.learningShell.classroomPortal :is(h1, h2, h3, h4, p, label, button, input, select, textarea, summary) {
+  font-family: inherit;
+}
+
+.learningShell.classroomPortal :is(.codeEditor, .legacyLab textarea, pre, code) {
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+
+.learningShell.classroomPortal .learningMain {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: 24px clamp(18px, 2vw, 36px) 32px;
+}
+
+.learningContent {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  container: workspace / inline-size;
+}
+
+.learningContent > :last-child { margin-bottom: 0; }
+.learningShell.classroomPortal .learningTopbar { margin-bottom: 24px; gap: 20px; }
+.learningShell.classroomPortal .learningTopbar h1 { font-size: clamp(25px, 2.2vw, 34px); line-height: 1.2; letter-spacing: -.7px; }
+.learningShell.classroomPortal .learningTopbar .eyebrow { font-size: 11px; margin-bottom: 7px; }
+.learningShell.classroomPortal .courseSelect label { font-size: 12px; }
+.learningShell.classroomPortal .courseSelect select { font-size: 14px; min-height: 44px; }
+.learningShell.classroomPortal .courseSelect button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; font-size: 14px; }
+
+.portalIcon { display: block; width: 21px; height: 21px; flex: 0 0 21px; }
+.learningShell.classroomPortal .learningSidebar { padding: 24px 16px 18px; gap: 14px; }
+.learningShell.classroomPortal .learningSidebar nav { gap: 5px; }
+.learningShell.classroomPortal .learningSidebar nav button { gap: 12px; min-height: 44px; padding: 11px 12px; font-size: 14px; line-height: 1.4; }
+.learningShell.classroomPortal .learningSidebar nav button > span { min-width: 0; }
+.learningShell.classroomPortal .learningSidebar nav button[aria-current="page"] { background: #e7f5ef; color: #087d66; box-shadow: inset 3px 0 #0a8a73; }
+.learningShell.classroomPortal .sidebarFooter { font-size: 13px; }
+.learningShell.classroomPortal .sidebarFooter button { display: flex; align-items: center; gap: 9px; text-align: left; min-height: 42px; padding: 9px 12px; font-size: 13px; }
+.learningShell.classroomPortal .sidebarFooter .portalIcon { width: 18px; height: 18px; flex-basis: 18px; }
+
+.learningShell.classroomPortal .classroomBox { padding: clamp(18px, 2vw, 28px); border-color: var(--workspace-border); border-radius: 16px; }
+.learningShell.classroomPortal p { font-size: 15px; line-height: 1.65; }
+.learningShell.classroomPortal h2 { font-size: clamp(21px, 1.7vw, 26px); }
+.learningShell.classroomPortal h3 { font-size: 18px; }
+.learningShell.classroomPortal :is(label, summary) { font-size: 13px; }
+.learningShell.classroomPortal :is(input, select, textarea) { font-size: 14px; }
+.learningShell.classroomPortal button { font-size: 14px; }
+.learningShell.classroomPortal .eyebrow { font-size: 11px; }
+.learningShell.classroomPortal .statusTag { font-size: 11px; }
+.learningShell.classroomPortal .statGrid { gap: 18px; }
+.learningShell.classroomPortal .statCard { padding: 22px; border-radius: 14px; }
+.learningShell.classroomPortal .statCard strong { font-size: clamp(26px, 2.4vw, 36px); line-height: 1.2; }
+.learningShell.classroomPortal .statCard span { font-size: 12px; }
+.learningShell.classroomPortal table { font-size: 13px; }
+.learningShell.classroomPortal th { font-size: 11px; }
+.learningShell.classroomPortal .insightsGrid { grid-template-columns: 1fr; gap: 24px; }
+.learningShell.classroomPortal .learningHero { padding: clamp(24px, 3vw, 42px); }
+.learningShell.classroomPortal .learningHero h2 { font-size: clamp(28px, 3vw, 42px); }
+
+/* Tutor: a question composer beside its evidence-backed answer feed on wide screens. */
+.askLayout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; margin-top: 24px; align-items: start; }
+.askComposer { min-width: 0; padding: 18px; border: 1px solid var(--workspace-border); border-radius: 12px; background: var(--workspace-soft); }
+.learningShell.classroomPortal .askComposer label { margin-top: 0; }
+.learningShell.classroomPortal .askComposer textarea { min-height: 190px; resize: vertical; }
+.learningShell.classroomPortal .askComposer form > button { width: 100%; margin-right: 0; }
+.askComposer .suggestedQuestions { flex-direction: column; align-items: stretch; }
+.learningShell.classroomPortal .askComposer .suggestedQuestions button { margin: 0; text-align: left; }
+.askFeed { min-width: 0; }
+.askFeed:focus-visible { outline: 2px solid #47a695; outline-offset: 4px; border-radius: 10px; }
+.askFeed .answerCard:first-of-type { margin-top: 0; }
+.learningShell.classroomPortal .tutorEmpty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; min-height: 300px; margin: 0; padding: 28px; }
+.tutorEmpty .portalIcon { width: 48px; height: 48px; flex-basis: 48px; color: #318d77; }
+.learningShell.classroomPortal .tutorEmpty h3 { margin: 5px 0; }
+.learningShell.classroomPortal .tutorEmpty p { max-width: 46ch; }
+
+/* Courses: settings stay compact; the material library receives the remaining width. */
+.courseWorkspace { display: grid; grid-template-columns: minmax(0, 1fr); gap: 22px; align-items: start; }
+.courseWorkspace > * { min-width: 0; }
+.courseWorkspace > .lectureDetail { grid-column: 1 / -1; }
+.learningShell.classroomPortal .courseWorkspace > .classroomBox { margin-bottom: 0; }
+.learningShell.classroomPortal :is(.courseSetup, .materialsLibrary) .materialGrid { grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr)); gap: 18px; }
+.learningShell.classroomPortal .materialCard { padding: 20px; border-radius: 12px; }
+.learningShell.classroomPortal .materialCard h3 { font-size: 18px; }
+.learningShell.classroomPortal .courseWorkspace .topicForm { display: grid; gap: 14px; padding: 14px; }
+.learningShell.classroomPortal .courseWorkspace .topicForm label { margin: 0; }
+.learningShell.classroomPortal .courseWorkspace .topicForm button { width: 100%; margin: 0; }
+.learningShell.classroomPortal .courseWorkspace .topicList { max-height: 420px; }
+
+/* Assessments: compact settings, full-width single questions, and a grid for several. */
+.learningShell.classroomPortal .assessmentSetup { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; padding: 20px; margin: 24px 0; background: var(--workspace-soft); border: 1px solid var(--workspace-border); border-radius: 12px; }
+.learningShell.classroomPortal .assessmentSetup label { min-width: 0; margin: 0; }
+.learningShell.classroomPortal .assessmentSetup button { grid-column: 1 / -1; justify-self: start; margin: 0; }
+.assessmentQuestions { display: grid; grid-template-columns: minmax(0, 1fr); gap: 22px; margin: 22px 0; }
+.assessmentQuestions[data-question-count="0"] { display: none; }
+.learningShell.classroomPortal .assessmentQuestion { min-width: 0; margin: 0; padding: 22px; background: #fff; border: 1px solid var(--workspace-border); border-radius: 12px; }
+.learningShell.classroomPortal .assessmentQuestion h3 { font-size: 18px; line-height: 1.5; }
+.learningShell.classroomPortal .assessmentQuestion textarea { min-height: 150px; resize: vertical; }
+.learningShell.classroomPortal .quizOption { min-height: 52px; padding: 14px; }
+
+/* Programming gets a larger editor; ordinary questions remain in a reading layout. */
+.practicePrompt, .practiceAnswerForm { min-width: 0; }
+.learningShell.classroomPortal .practiceWorkspace .practiceQuestion { margin-top: 24px; padding: 22px; border: 1px solid var(--workspace-border); border-radius: 12px; }
+.learningShell.classroomPortal .practiceAnswerForm .codeEditor { min-height: 390px; font-size: 14px; line-height: 1.65; }
+.learningShell.classroomPortal .legacyLab :is(.app, .app-container, .topWorkspace.studentWorkspace, .studentWorkspace ~ .card) { width: 100% !important; max-width: 100% !important; margin-left: 0 !important; margin-right: 0 !important; }
+.learningShell.classroomPortal .legacyLab .app { padding: 0; }
+.learningShell.classroomPortal .legacyLab .studentWorkspace .mainRail > .card { min-width: 0; }
+
+.learningShell.classroomPortal .pathTasks { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; margin-top: 24px; }
+.learningShell.classroomPortal .pathTasks > article { min-width: 0; margin: 0; }
+.learningShell.classroomPortal .masteryGrid { grid-template-columns: repeat(auto-fill, minmax(min(180px, 100%), 1fr)); gap: 18px; }
+.learningShell.classroomPortal .courseGraph { padding: 18px; border: 1px solid var(--workspace-border); border-radius: 12px; background: var(--workspace-soft); }
+.learningShell.classroomPortal .courseGraph svg { width: 100%; min-width: 640px; max-width: 1100px; height: auto; max-height: 560px; }
+.learningShell.classroomPortal .progressReport .classroomColumns { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.learningShell.classroomPortal .vivaConversation { margin-top: 24px; padding: 22px; border: 1px solid var(--workspace-border); border-radius: 12px; background: var(--workspace-soft); }
+.learningShell.classroomPortal .vivaConversation textarea { min-height: 220px; }
+.learningShell[data-workspace="account"] .learningContent > .classroomBox { max-width: 760px; }
+
+@container workspace (min-width: 900px) {
+  .learningShell.classroomPortal .insightsGrid { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); }
+  .learningShell.classroomPortal .pathTasks { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@container workspace (min-width: 1000px) {
+  .askLayout { grid-template-columns: minmax(280px, 340px) minmax(0, 1fr); }
+  .askFeed { max-height: max(360px, calc(100dvh - 255px)); overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; padding: 2px 8px 4px 2px; }
+  .learningShell.classroomPortal .tutorEmpty { min-height: max(360px, calc(100dvh - 285px)); }
+  .learningShell.classroomPortal .assessmentSetup { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.15fr) minmax(0, 1.2fr) minmax(90px, .4fr); }
+}
+
+@container workspace (min-width: 1100px) {
+  .courseWorkspace[data-teacher="true"] { grid-template-columns: minmax(280px, 340px) minmax(0, 1fr); }
+  .assessmentQuestions:not([data-question-count="1"]) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .learningShell.classroomPortal .practiceWorkspace .practiceQuestion[data-kind="code"] { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.4fr); gap: 22px; align-items: start; }
+  .practiceWorkspace .practiceQuestion[data-kind="code"] > * { grid-column: 1 / -1; }
+  .practiceWorkspace .practiceQuestion[data-kind="code"] > .practicePrompt { grid-column: 1; grid-row: 1; }
+  .practiceWorkspace .practiceQuestion[data-kind="code"] > .practiceAnswerForm { grid-column: 2; grid-row: 1; }
+}
+
+@container workspace (max-width: 580px) {
+  .learningShell.classroomPortal .assessmentSetup { grid-template-columns: minmax(0, 1fr); padding: 14px; }
+  .learningShell.classroomPortal .assessmentQuestion { padding: 16px; }
+  .learningShell.classroomPortal .progressReport .classroomColumns { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 720px) {
+  .learningShell.classroomPortal { display: block; }
+  .learningShell.classroomPortal .learningMain { min-height: auto; padding: 20px 14px 28px; }
+  .learningShell.classroomPortal .learningSidebar { padding: 16px 14px; gap: 10px; }
+  .learningShell.classroomPortal .learningSidebar nav button { min-height: 44px; padding: 10px 12px; gap: 8px; font-size: 13px; }
+  .learningShell.classroomPortal .learningSidebar nav button[aria-current="page"] { box-shadow: inset 0 -3px #0a8a73; }
+  .learningShell.classroomPortal .sidebarFooter button { min-height: 44px; padding: 9px; font-size: 12px; }
+  .learningShell.classroomPortal .learningTopbar { margin-bottom: 20px; }
+  .learningShell.classroomPortal .learningTopbar h1 { font-size: 26px; }
+  .learningShell.classroomPortal .classroomBox { padding: 16px; border-radius: 12px; }
+  .learningShell.classroomPortal .statGrid { gap: 12px; }
+  .learningShell.classroomPortal .statCard { padding: 16px; }
+  .learningShell.classroomPortal .masteryGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .learningShell.classroomPortal .courseGraph { padding: 12px; }
+  .askComposer { padding: 14px; }
+  .askLayout { gap: 20px; }
+  .learningShell.classroomPortal .tutorEmpty { padding: 20px; min-height: 240px; }
+  .learningShell.classroomPortal .practiceAnswerForm .codeEditor { min-height: 320px; }
+}
+
+@media print {
+  #root:has(.learningShell), .learningContent { display: block; container-type: normal; }
+  .learningShell.classroomPortal .learningMain { display: block; min-height: 0; padding: 0; }
+  .learningContent > :not(.progressReport) { display: none !important; }
+  .learningShell.classroomPortal .progressReport { border: 0; padding: 0; box-shadow: none; }
+}

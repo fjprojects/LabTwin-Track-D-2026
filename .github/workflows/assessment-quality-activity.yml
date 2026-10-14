@@ -29,6 +29,11 @@ jobs:
           sudo apt-get install -y -qq ffmpeg poppler-utils tesseract-ocr
       - name: Install backend packages
         run: python -m pip install --disable-pip-version-check --no-input -r requirements-render.txt
+      - name: Install isolated DeepEval environment for full Track D regression
+        run: |
+          python -m venv .venv-evaluation
+          .venv-evaluation/bin/python -m pip install --disable-pip-version-check --no-input -r requirements-evaluation.txt
+          echo "LABTWIN_TEST_EVALUATOR_PYTHON=$GITHUB_WORKSPACE/.venv-evaluation/bin/python" >> "$GITHUB_ENV"
       - name: Run backend learning, assessment, integrity, OCR and camera regressions
         run: |
           python backend/manage.py test \

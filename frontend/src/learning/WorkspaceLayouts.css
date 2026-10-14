@@ -62,7 +62,7 @@
 .learningShell.classroomPortal .learningSidebar { padding: 24px 16px 18px; gap: 14px; }
 .learningShell.classroomPortal .learningSidebar nav { gap: 5px; }
 .learningShell.classroomPortal .learningSidebar nav button { gap: 12px; min-height: 44px; padding: 11px 12px; font-size: 14px; line-height: 1.4; }
-.learningShell.classroomPortal .learningSidebar nav button > span { min-width: 0; }
+.learningShell.classroomPortal .learningSidebar nav button > span { min-width: 0; overflow-wrap: normal; word-break: normal; }
 .learningShell.classroomPortal .learningSidebar nav button[aria-current="page"] { background: #e7f5ef; color: #087d66; box-shadow: inset 3px 0 #0a8a73; }
 .learningShell.classroomPortal .sidebarFooter { font-size: 13px; }
 .learningShell.classroomPortal .sidebarFooter button { display: flex; align-items: center; gap: 9px; text-align: left; min-height: 42px; padding: 9px 12px; font-size: 13px; }
@@ -77,6 +77,7 @@
 .learningShell.classroomPortal button { font-size: 14px; }
 .learningShell.classroomPortal .eyebrow { font-size: 11px; }
 .learningShell.classroomPortal .statusTag { font-size: 11px; }
+.learningShell.classroomPortal .methodNote { font-size: 13px; line-height: 1.6; }
 .learningShell.classroomPortal .statGrid { gap: 18px; }
 .learningShell.classroomPortal .statCard { padding: 22px; border-radius: 14px; }
 .learningShell.classroomPortal .statCard strong { font-size: clamp(26px, 2.4vw, 36px); line-height: 1.2; }

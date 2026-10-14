@@ -7,6 +7,7 @@ const paths = {
   Classes: ["M3 21h18 M5 21V9l7-6 7 6v12 M9 21v-6h6v6 M8 10h1 M15 10h1"],
   "Learning Path": ["M6 7a2 2 0 1 0 0-4 2 2 0 0 0 0 4z M18 21a2 2 0 1 0 0-4 2 2 0 0 0 0 4z", "M6 7v3c0 2 2 3 4 3h4c2 0 4 1 4 3v1"],
   Practice: ["M8 6 2 12l6 6 M16 6l6 6-6 6 M14 3l-4 18"],
+  "Programming Lab": ["M3 4h18v16H3z", "m6 9 3 3-3 3 M12 15h5"],
   Assessments: ["M9 3h6v4H9z M9 5H5v16h14V5h-4", "m8 12 1 1 2-2 M13 12h3 m-8 5 1 1 2-2 M13 17h3"],
   Assignments: ["M8 3h8v4H8z M8 5H4v16h16V5h-4 M8 11h8 M8 15h8 M8 18h5"],
   Students: ["M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M2 21v-2a7 7 0 0 1 14 0v2", "M17 4a4 4 0 0 1 0 7 M19 14a6 6 0 0 1 3 5v2"],

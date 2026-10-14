@@ -97,6 +97,7 @@ async function api(route, token, data) {
     const teacherPage = await tc.newPage(); teacherPage.on('pageerror', error => errors.push(error.message));
     await teacherPage.goto(origin); await teacherPage.getByRole('navigation').getByRole('button', { name: 'Assessments', exact: true }).click();
     const reportRow = teacherPage.getByRole('row').filter({ hasText: 'Synthetic Activity Student' });
+    await reportRow.waitFor();
     const cells = await reportRow.getByRole('cell').allTextContents();
     assert.equal(cells[2], '2'); assert.equal(cells[3], '1'); assert.equal(cells[4], '1 / 0');
     await reportRow.getByRole('button', { name: /Review assessment/ }).click();

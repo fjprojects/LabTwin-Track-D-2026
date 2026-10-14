@@ -47,8 +47,8 @@ def activity_events(request, session_id):
         if not isinstance(items, list) or any(
             not isinstance(item, dict) or item.get("kind") not in BROWSER_ACTIVITY_KINDS for item in items
         ):
-            raise LearningError("Only tab-switch and blocked-paste observations are allowed.")
-        rows = save_events(session, items)
+            raise LearningError("Only tab, focus and paste observations are allowed.")
+        rows = save_events(session, items, allow_completed_browser_sync=True)
     else:
         rows = session.camera_events.filter(kind__in=BROWSER_ACTIVITY_KINDS)[:2000]
     summary = camera_summary(session)
@@ -56,6 +56,9 @@ def activity_events(request, session_id):
         "events": [event_data(row) for row in rows],
         "tab_switches": summary["tab_switches"],
         "blocked_pastes": summary["blocked_pastes"],
+        "allowed_pastes": summary["allowed_pastes"],
+        "focus_losses": summary["focus_losses"],
+        "focus_returns": summary["focus_returns"],
         "interpretation": OBSERVATION_NOTE,
         "status": session.status,
     })

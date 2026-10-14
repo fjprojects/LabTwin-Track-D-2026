@@ -144,7 +144,7 @@ function StudentAssignment({ initial, onClose, onSource, onViva, onLearningChang
         {!submitted && <><button type="button" onClick={copyCode}>Copy code</button>{" "}<button type="button" disabled={!assignment.allow_paste} onClick={pasteCode}>Paste code</button><p>{assignment.allow_paste ? "Paste is allowed and recorded." : "Your teacher has blocked paste for this assignment."}</p></>}
       </>}
       {stage === "viva" && <><p><strong>Viva question:</strong> {assignment.viva_question || "Explain how your program works and why you chose this approach."}</p><label>Your viva answer<textarea aria-label="Your viva answer" data-assessment-field="viva_answer" value={viva} readOnly={submitted} onChange={e => setViva(e.target.value)} /></label><p>You can explain aloud to a teacher who is watching, and save your written explanation here.</p></>}
-      {error && <p role="alert">{error}</p>}{events.logError && !submitted && <p role="alert">{events.logError}</p>}
+      {error && <p role="alert">{error}</p>}{events.logError && !submitted && <p role="alert">{events.logError}</p>}{events.clipboardNotice && !submitted && <p role="status">{events.clipboardNotice}</p>}
       {!submitted && <><p>{saved}</p><button disabled={busy || !code.trim() || (assignment.require_camera && !sharing.camera) || (assignment.require_screen && !sharing.screen)}>{busy ? "Submitting…" : "Submit code and viva"}</button></>}
     </form>
     {submitted && <><h3>Submitted response</h3><p>Test score: {attempt.test_score ?? "Pending"}{attempt.test_score != null ? "%" : ""}</p>{attempt.error && <p role="alert">{attempt.error}</p>}

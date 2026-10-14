@@ -1,6 +1,6 @@
 # Executed evaluation and personalization benchmark
 
-LabTwin executes **DeepEval 4.2.7** against its actual ingestion, retrieval and answer pipeline. The saved [baseline](results/baseline.json) contains measurements from an executed run, not fixed dashboard values. Production students/materials are excluded: every run creates and destroys a separate SQLite database, private upload directory and Chroma index.
+LabTwin executes **DeepEval 4.2.7** against its actual ingestion, retrieval and answer pipeline. The saved [baseline](results/baseline.json) is historical evidence. The [2026-10-15 release audit](results/release-audit-20261015.json) contains the latest executed measurements, including verified-pool exhaustion. Neither file supplies fixed dashboard values. Production students/materials are excluded: every run creates and destroys a separate SQLite database, private upload directory and Chroma index.
 
 ## Dataset
 
@@ -48,7 +48,7 @@ Perfect quote/concept proxy values on this small excerpt-based corpus do not est
 
 ## Personalization experiment
 
-Three simulated profiles complete a two-topic diagnostic and four sessions of two delivered questions each:
+Three simulated profiles complete a two-topic diagnostic and four sessions, requesting up to two verified unique questions per session:
 
 - A: strong programming fundamentals, weak linked lists.
 - B: weak fundamentals and linked lists.
@@ -60,13 +60,13 @@ Before each response, the learner model predicts correctness as `p_known × (1-s
 
 | Profile | Mean Brier | Static-prior Brier | Session 1 → 4 Brier | Linked-list mastery change | Repeated / delivered |
 |---|---:|---:|---|---:|---:|
-| A | 0.1285 | 0.1646 | 0.2641 → 0.0435 | +69.4 points | 0 / 8 |
-| B | 0.2159 | 0.2346 | 0.3105 → 0.1615 | +34.0 points | 0 / 8 |
+| A | 0.1425 | 0.1825 | 0.2641 → 0.0352 | +68.3 points | 0 / 8 |
+| B | 0.3105 | 0.4096 | Session 1: 0.3105; later sessions delivered no questions | 0.0 points | 0 / 2 |
 | C | 0.0449 | 0.1296 | 0.0823 → 0.0195 | +41.4 points | 0 / 8 |
 
-Profile C progresses from mean difficulty 2 to 3. B remains at foundation difficulty 1. A moves from 1 to 2. B's loss increases slightly between sessions 3 and 4, and its uncertainty rises as accumulated successful responses move its estimate toward 0.5. Improvement is not claimed to be monotonic in every metric/session.
+These are the actual release-audit measurements. Profile C progresses from mean difficulty 2 to 3, and A moves from 1 to 2.5. **Profile B exhausts its verified unique foundation pool after session 1**; sessions 2–4 deliver zero questions. Its fundamentals estimate falls by 6.5 points after incorrect evidence, while linked-list mastery is unchanged. Do not claim an eight-answer experiment, a learning gain or a session-4 prediction improvement for B. A zero repetition rate with only two delivered questions is not proof of a sufficient question pool.
 
-This demonstrates different selection/policy behavior and prediction improvement in a controlled synthetic sequence. Improving simulated outcomes do **not** establish that LabTwin caused human learning gains. Parameters and difficulty labels are not fitted/calibrated. A real student study with independent pre/post assessments and a comparison group remains necessary for causal effectiveness claims.
+This demonstrates different selection/policy behavior and prediction improvement for A/C in controlled synthetic sequences, and an important source/pool limitation for B. Improving simulated outcomes do **not** establish that LabTwin caused human learning gains. Parameters and difficulty labels are not fitted/calibrated. A real student study with independent pre/post assessments and a comparison group remains necessary for causal effectiveness claims.
 
 ## Reproduce
 

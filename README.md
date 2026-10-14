@@ -1,5 +1,7 @@
 # LabTwin
 
+Latest development audit: [2026-10-15 release report](LabTwin-Release-Audit-20261015.md). Camera/clipboard/activity fixes and responsive UI are on `audit/release-20261015` ([draft PR #3](https://github.com/fjprojects/LabTwin-Track-D-2026/pull/3)). The existing Render site still returns 502; production deployment remains on hold until a verified restorable backup and final permission. This is not a claim that the live demo is ready.
+
 **Multimodal AI Hackathon 2026 · Track D: Personalized Tutoring & Adaptive Learning**
 
 LabTwin combines a private course knowledge base, source-grounded tutoring, verified adaptive assessments and an explainable learner model with its existing Python/C/Java programming lab.

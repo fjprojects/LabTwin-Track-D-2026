@@ -7,9 +7,21 @@ from .vectors import tokens
 
 def clean_heading(text):
     value = " ".join(str(text).strip("# \t").split())
+    # Scanned handwriting and index pages often produce fragments, not topic names.
+    # Retain the extracted source for teacher review; don't promote it to taxonomy.
+    if re.search(r"[|_\\{}<>\uFFFD\x7f]|[\x00-\x08\x0b-\x1f]", value):
+        return ""
+    if re.search(r"\b(?:sno|s\.?\s*no|page\s*no|title\s+of\s+the\s+topic|table\s+of\s+contents)\b", value, re.I):
+        return ""
     if 3 <= len(value) <= 120 and len(value.split()) <= 14 and not value.endswith((".", "?")):
         return value
     return ""
+
+
+def assessment_topic_eligible(topic):
+    """Auto-imported illegible headings need teacher review before being assessed."""
+    evidence = topic.taxonomy_evidence if isinstance(topic.taxonomy_evidence, dict) else {}
+    return evidence.get("method") != "source_heading" or bool(clean_heading(topic.name))
 
 
 def would_cycle(topic, prerequisite):

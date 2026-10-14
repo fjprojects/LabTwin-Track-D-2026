@@ -12,8 +12,9 @@ from .access import LearningError
 from .sources import citations_for
 
 OBSERVATION_NOTE = "Camera and browser observations are fallible student-device reports, not proof of copying. They do not change grades or mastery."
+BROWSER_ACTIVITY_KINDS = {"tab_hidden", "paste_blocked"}
 KINDS = {"camera_started", "camera_stopped", "camera_calibrated", "camera_cue",
-         "permission_denied", "camera_unavailable", "camera_analysis_error", "page_return", "paste"}
+         "permission_denied", "camera_unavailable", "camera_analysis_error", "page_return", "paste"} | BROWSER_ACTIVITY_KINDS
 REASONS = {"head_turned", "face_absent"}
 
 
@@ -29,6 +30,8 @@ def camera_summary(session):
     counts = Counter(row.kind for row in rows)
     cues = Counter(row.detail.get("reason") for row in rows if row.kind == "camera_cue")
     return {"counts": dict(counts), "cues": dict(cues), "total": len(rows),
+            "tab_switches": counts.get("tab_hidden", 0),
+            "blocked_pastes": counts.get("paste_blocked", 0),
             "verification_answers": sum(row.detail.get("verification", {}).get("status") == "answered" for row in rows),
             "interpretation": OBSERVATION_NOTE}
 

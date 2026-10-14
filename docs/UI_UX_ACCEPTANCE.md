@@ -19,6 +19,23 @@ Working branch: `fix/ui-ux-20261014`.
 
 No database reset, data deletion, schema migration, API removal, role-policy relaxation, production Supabase operation, Render deployment or Supabase draft-PR merge is part of this branch. All backend application files are unchanged; the added backend file contains tests only. No authentication credentials are stored in the branch.
 
+## Exact files changed
+
+- `frontend/src/learning/LearningPortal.jsx`
+- `frontend/src/learning/LearningPortal.css`
+- `frontend/src/learning/CourseMaterials.jsx`
+- `frontend/src/learning/AskLabTwin.jsx`
+- `frontend/src/learning/SourceViewer.jsx`
+- `frontend/src/learning/topicForm.js`
+- `frontend/src/learning/topicForm.test.js`
+- `frontend/src/learning/answerState.js`
+- `frontend/src/learning/answerState.test.js`
+- `frontend/package.json`
+- `backend/labtwin/test_ui_permissions.py`
+- `scripts/e2e_ui.cjs`
+- `.github/workflows/ui-ux.yml`
+- `docs/UI_UX_ACCEPTANCE.md`
+
 ## Automated validation
 
 The branch's GitHub Actions workflow `LabTwin UI and learning regression checks` runs:
@@ -27,11 +44,23 @@ The branch's GitHub Actions workflow `LabTwin UI and learning regression checks`
 - Existing backend topic and learning tests, additional teacher/student authorization and answer-mode tests, and selected Track D conversation, short-answer review, diagnostic and verified-format regressions.
 - Existing topic browser tests for stale duplicate rejection and rapid submission.
 - New browser checks using the real UI/API at 1920×1080, 1366×768, 1280×720, 900×480, 390×844 and 320×568 CSS pixels, with no browser zoom changes.
-- Teacher and student sign-out, topic prerequisites/success/warnings, teacher understanding-check denial, student check grading, persisted mastery, MCQ and short-answer assessment reports, unsupported questions, and a generated six-page PDF cited at page 6.
+- Teacher editor layouts for MCQ, short answer, numerical and code formats; contained dashboard table scrolling; teacher and student sign-out; topic prerequisites/success/warnings; teacher understanding-check denial, student check grading, persisted mastery, MCQ and short-answer assessment reports, unsupported questions, and a generated six-page PDF cited at page 6.
 
 The workflow uses `backend.test_settings` and a disposable local test server. The database, uploaded test materials, vectors and artificial accounts live only in the runner's temporary filesystem. Remote AI is disabled. No production environment variables or deployment secrets are used.
 
-Check the actual Actions conclusion before merging. A configured workflow is not evidence that it passed.
+Verified result: [GitHub Actions run 38601023291](https://github.com/fjprojects/LabTwin-Track-D-2026/actions/runs/38601023291) completed successfully against code commit `2ac736682448199c0d0e8d06624637a5b0a456c7`.
+
+- Lint: 0 errors and 0 warnings.
+- Frontend API, auth, camera and learning test commands: all passed.
+- Vite production build: passed.
+- Backend: 50 tests passed, using an in-memory database.
+- Existing topic browser suite: passed, including real backend 400 recovery and rapid repeated submissions.
+- New UI browser suite: passed, including the six viewport sizes and page-6/source/student assessment checks above.
+- Fixture screenshots and disposable server logs are attached to that run as `ui-acceptance-fixtures` (seven-day retention).
+
+The initial CI setup needed job-environment paths corrected and ffmpeg/ffprobe installed for the existing video demo test. Neither change touched application/backend behavior. This final result includes the existing demo regression; no failing test was removed or skipped to achieve it.
+
+The follow-up documentation commit only records this result and the file inventory; the tested application, test scripts and workflow remain identical to the successful code commit.
 
 ## Manual browser acceptance checklist
 
@@ -81,7 +110,7 @@ Set-Location "C:\Users\francis\LabTwin-Track-D-2026\backend"
 python manage.py test labtwin.test_topic_creation labtwin.test_ui_permissions labtwin.test_learning --settings=backend.test_settings -v 2
 ```
 
-This command selects an in-memory test database. Do not substitute production/deployment settings. Use CI for the disposable browser scripts unless you have deliberately set up a separate local test environment.
+The existing video/demo regression requires ffmpeg and ffprobe on PATH, along with the project dependencies. This command selects an in-memory test database. Do not substitute production/deployment settings. Use CI for the disposable browser scripts unless you have deliberately set up a separate local test environment.
 
 ## Limits and separate AI investigation
 

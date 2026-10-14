@@ -43,12 +43,34 @@ const { launchBrowser } = require('./e2e_browser.cjs');
     await page.waitForFunction(() => document.documentElement.scrollWidth <= innerWidth + 1);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, 'Page has horizontal overflow');
   }
+  async function fullWidthAndIcons() {
+    const bounds = await page.evaluate(() => {
+      const shell = document.querySelector('.learningShell').getBoundingClientRect();
+      const main = document.querySelector('.learningMain').getBoundingClientRect();
+      return { left: shell.left, right: shell.right, width: shell.width, mainRight: main.right, available: document.documentElement.clientWidth };
+    });
+    assert(Math.abs(bounds.left) <= 1 && Math.abs(bounds.width - bounds.available) <= 1, 'Portal must use the full browser content width');
+    assert(Math.abs(bounds.mainRight - bounds.available) <= 1, 'Main column must reach the viewport edge without an outer centered margin');
+    const icons = await page.getByRole('navigation').getByRole('button').evaluateAll(buttons => buttons.map(button => {
+      const svg = button.querySelector('svg.portalIcon');
+      return { label: button.textContent.trim(), icon: svg?.getAttribute('data-icon'), paths: svg?.querySelectorAll('path').length,
+        width: svg?.getBoundingClientRect().width, decorative: svg?.getAttribute('aria-hidden') };
+    }));
+    assert(icons.length >= 10);
+    for (const icon of icons) {
+      assert.equal(icon.icon, icon.label, 'Each navigation label needs its own mapped icon');
+      assert(icon.paths > 0 && icon.width >= 18, 'Navigation icons must be real, readable SVGs');
+      assert.equal(icon.decorative, 'true', 'Button names should remain readable without redundant icon announcements');
+    }
+    assert.equal(await page.locator('.learningSidebar .navDot').count(), 0, 'Placeholder squares must be removed');
+  }
   async function accountLayout(role) {
     for (const viewport of [{ width: 1920, height: 1080 }, { width: 1366, height: 768 }, { width: 1280, height: 720 },
       { width: 900, height: 480 }, { width: 390, height: 844 }, { width: 320, height: 568 }]) {
       await page.setViewportSize(viewport);
       await page.evaluate(() => window.scrollTo(0, 0));
       await noOverflow();
+      await fullWidthAndIcons();
       for (const label of ['Recovery phone', 'Sign out']) {
         const box = await page.locator('.sidebarFooter').getByRole('button', { name: label, exact: true }).boundingBox();
         assert(box && box.x >= 0 && box.y >= 0 && box.x + box.width <= viewport.width + 1 && box.y + box.height <= viewport.height + 1,
@@ -61,6 +83,39 @@ const { launchBrowser } = require('./e2e_browser.cjs');
       await screenshot(role + '-' + viewport.width + 'x' + viewport.height);
     }
     await page.setViewportSize({ width: 1366, height: 768 });
+  }
+  async function pageLayouts(role) {
+    const pages = role === 'teacher'
+      ? ['Dashboard', 'Ask LabTwin', 'Classes', 'Course Materials', 'Assignments', 'Students', 'Assessments', 'AI Insights', 'Evaluation', 'Reports', 'Demo Mode']
+      : ['Dashboard', 'Ask LabTwin', 'My Courses', 'Learning Path', 'Practice', 'Assessments', 'Assignments', 'Viva', 'Mastery Map', 'Progress', 'Demo Mode'];
+    for (const name of pages) {
+      await nav(name);
+      await page.getByRole('heading', { name, exact: true, level: 1 }).waitFor();
+      for (const viewport of [{ width: 1920, height: 1080 }, { width: 1366, height: 768 }, { width: 390, height: 844 }]) {
+        await page.setViewportSize(viewport);
+        await noOverflow();
+        await fullWidthAndIcons();
+        await screenshot(role + '-' + name.toLowerCase().replaceAll(' ', '-') + '-' + viewport.width);
+      }
+      if (name === 'Ask LabTwin') {
+        await page.setViewportSize({ width: 1920, height: 1080 });
+        const composer = await page.locator('.askComposer').boundingBox();
+        const feed = await page.locator('.askFeed').boundingBox();
+        assert(composer && feed && composer.x + composer.width < feed.x, 'Wide tutor should give composer and answers separate columns');
+        await page.setViewportSize({ width: 390, height: 844 });
+        const smallComposer = await page.locator('.askComposer').boundingBox();
+        const smallFeed = await page.locator('.askFeed').boundingBox();
+        assert(smallComposer.y + smallComposer.height < smallFeed.y, 'Mobile tutor panels should stack');
+      }
+      if (name === 'Course Materials') {
+        await page.setViewportSize({ width: 1920, height: 1080 });
+        const settings = await page.locator('.topicSettings').boundingBox();
+        const materials = await page.locator('.materialsLibrary').boundingBox();
+        assert(settings && materials && settings.x + settings.width < materials.x, 'Wide course settings should sit beside the material library');
+      }
+    }
+    await page.setViewportSize({ width: 1366, height: 768 });
+    await nav('Dashboard');
   }
   async function ask(text) {
     await page.getByLabel('Your question', { exact: true }).fill(text);
@@ -117,6 +172,7 @@ const { launchBrowser } = require('./e2e_browser.cjs');
     await signIn(teacher);
     await page.getByRole('heading', { name: 'Class mastery by topic', exact: true }).waitFor();
     await accountLayout('teacher');
+    await pageLayouts('teacher');
     await nav('Course Materials');
     const topics = page.locator('.topicSettings');
     await topics.getByText('Selected course:', { exact: false }).waitFor();
@@ -202,6 +258,7 @@ const { launchBrowser } = require('./e2e_browser.cjs');
 
     await signIn(student);
     await accountLayout('student');
+    await pageLayouts('student');
     await nav('Ask LabTwin');
     await ask('Dynamic method dispatch on page 6');
     await page.locator('.answerCard').first().getByRole('button', { name: 'Check my understanding', exact: true }).click();
@@ -230,6 +287,7 @@ const { launchBrowser } = require('./e2e_browser.cjs');
       sessions.push((await response.json()).assessment.id);
       if (format === 'quiz') await page.getByRole('radio').first().check();
       else await page.getByLabel('Your short answer', { exact: true }).fill('runtime');
+      if (format === 'short_answer') assert.equal(await page.getByLabel('Your short answer', { exact: true }).evaluate(element => element.tagName), 'TEXTAREA');
       await page.getByRole('button', { name: 'Submit answer 1', exact: true }).click();
       await page.locator('.practiceResult').getByText('Correct', { exact: true }).waitFor();
       await page.getByRole('heading', { name: 'Assessment report', exact: true }).waitFor();
@@ -255,7 +313,7 @@ const { launchBrowser } = require('./e2e_browser.cjs');
     await page.locator('.sidebarFooter').getByRole('button', { name: 'Sign out', exact: true }).click();
     await page.getByRole('button', { name: 'Sign in', exact: true }).waitFor();
     assert.deepEqual(errors, []);
-    console.log('PASS: teacher/student sidebar visibility at six viewports; real sign-out; topic success/prerequisites/duplicates; teacher role protection; student understanding-check feedback and persisted mastery; PDF page 6 and fixed Close source; MCQ/short-answer reports and persistence; unsupported state; no horizontal page overflow.');
+    console.log('PASS: full viewport width and inline SVG icons in both roles; all navigation pages at desktop/laptop/mobile widths; adaptive tutor/course panels; sidebar visibility at six viewports; real sign-out; topic feedback/duplicates; student-only checks and persisted mastery; PDF page 6 and fixed Close source; MCQ/short-answer reports with multiline answer boxes; no horizontal page overflow.');
   } catch (error) {
     await screenshot('ui-failure');
     throw error;

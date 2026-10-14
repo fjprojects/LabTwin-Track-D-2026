@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { get, post, errorText } from "./api";
 import SourceLinks from "./SourceLinks";
+import PortalIcon from "./PortalIcon";
 import { answerState, canCheckUnderstanding } from "./answerState";
 
 export default function AskLabTwin({ course, role, material, onSource, onClearLecture, onCompleted }) {
@@ -27,17 +28,23 @@ export default function AskLabTwin({ course, role, material, onSource, onClearLe
   return <section className="classroomBox askWorkspace">
     <p className="eyebrow">LEARN FROM YOUR TEACHER'S MATERIALS</p><h2>Ask LabTwin</h2>
     <p>Get explanations grounded in your course, with links to the exact page, slide or lecture moment.</p>
+    <div className="askLayout">
+    <div className="askComposer">
     {material && <p className="lectureScope">Asking this lecture: <strong>{material.title}</strong> <button className="secondary" disabled={busy} onClick={onClearLecture}>Ask the whole course</button></p>}
     <form onSubmit={ask} aria-busy={busy}><label>Your question<textarea required maxLength={3000} disabled={busy} value={question} onChange={e => setQuestion(e.target.value)} placeholder="Explain what my teacher taught about linked-list insertion." /></label><button disabled={!course || !question.trim() || busy || loadingHistory}>{busy ? "Finding course evidence…" : "Ask LabTwin"}</button></form>
     <div className="suggestedQuestions">{["Explain linked-list insertion", "Where did the teacher explain recursion?", "Explain JK flip-flop"].map(text => <button className="secondary" disabled={busy} key={text} onClick={() => setQuestion(text)}>{text}</button>)}</div>
     {error && <p role="alert">{error}</p>}
+    </div>
+    <div className="askFeed" role="region" aria-label="Tutor answers" tabIndex={0}>
     {(loadingHistory || busy) && <p role="status">{busy ? "Searching the selected course materials…" : "Loading saved answers…"}</p>}
-    {!history.length && !loadingHistory && !busy && <div className="learningEmpty">Your answers will appear here. If a topic is missing from the materials, LabTwin will say so.</div>}
+    {!history.length && !loadingHistory && !busy && <div className="learningEmpty tutorEmpty"><PortalIcon name="Ask LabTwin" /><h3>Learn from your course materials</h3><p>Your answers will appear here. If a topic is missing from the materials, LabTwin will say so.</p></div>}
     {history.map((item, index) => <article className="answerCard" key={item.id || index}>
       <h3>{item.question}</h3><AnswerContent item={item} onSource={onSource} />
       {item.tutoring_policy && <aside className="tutorScaffolding"><strong>{item.tutoring_policy.style} guidance</strong><p>{item.tutoring_policy.reason}</p><ol>{item.learning_steps?.map(step => <li key={step}>{step}</li>)}</ol></aside>}
       {canCheckUnderstanding(role, item) && <ConversationCheck exchange={item} onSource={onSource} onCompleted={onCompleted} />}
     </article>)}
+    </div>
+    </div>
   </section>;
 }
 

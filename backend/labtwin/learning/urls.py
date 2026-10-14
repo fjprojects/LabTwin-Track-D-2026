@@ -27,6 +27,7 @@ urlpatterns = [
     path("courses/<int:course_id>/assessments/", a.sessions),
     path("assessments/<int:session_id>/", a.detail),
     path("assessments/<int:session_id>/camera-events/", c.events),
+    path("assessments/<int:session_id>/activity-events/", c.activity_events),
     path("assessment-camera/events/<int:event_id>/response/", c.response),
     path("courses/<int:course_id>/assessment-activity/", c.review),
     path("courses/<int:course_id>/assessment-review/", a.review),

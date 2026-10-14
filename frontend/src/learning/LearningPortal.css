@@ -77,3 +77,10 @@
 .courseGraph { overflow: auto; max-width: 100%; margin: 1rem 0; }
 .courseGraph svg { display: block; width: 640px; max-width: none; }
 .courseGraph g:focus { outline: 2px solid #08715f; }
+
+/* Visible, neutral assessment activity disclosure; independent of camera opt-in. */
+.assessmentActivity{margin:14px 0 22px;padding:16px 18px;border:1px solid #b8d6c8;border-radius:10px;background:#f5faf7;color:#234b3b}
+.assessmentActivity>strong{display:block;font-size:14px;margin-bottom:8px}
+.assessmentActivity p{margin:8px 0;font-size:12px;line-height:1.55}
+.assessmentActivity [role="alert"]{padding:9px 11px;background:#fff6ea;border-left:3px solid #b07930;border-radius:4px;color:#6e471c}
+@media(max-width:720px){.assessmentActivity{padding:12px;margin:14px 0}}

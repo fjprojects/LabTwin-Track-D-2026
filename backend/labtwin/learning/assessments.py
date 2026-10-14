@@ -11,7 +11,10 @@ from .vectors import embedding_backend
 
 
 def scoped_topics(course, student, scope):
-    topics = list(course.topics.all())
+    from .taxonomy import assessment_topic_eligible
+    # Existing OCR fragments remain in source material and teacher controls,
+    # but are not automatically treated as examinable topics.
+    topics = [topic for topic in course.topics.all() if assessment_topic_eligible(topic)]
     selection = scope.get("selection", "all")
     if selection == "weak":
         strong = set(TopicMastery.objects.filter(student=student, topic__course=course, state="Strong").values_list("topic_id", flat=True))

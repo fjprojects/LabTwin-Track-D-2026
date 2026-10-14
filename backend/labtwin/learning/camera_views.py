@@ -3,7 +3,7 @@ from django.http import JsonResponse
 
 from ..models import AssessmentSession, AssessmentCameraEvent
 from .access import endpoint, course_for, authorized_courses, student_for, require_student, payload, LearningError
-from .camera import event_data, camera_policy, camera_summary, save_events, respond, OBSERVATION_NOTE
+from .camera import event_data, camera_policy, camera_summary, save_events, respond, OBSERVATION_NOTE, BROWSER_ACTIVITY_KINDS
 
 
 def session_for(account, session_id):
@@ -28,6 +28,37 @@ def events(request, session_id):
     return JsonResponse({"events": [event_data(row) for row in rows],
                          "policy": camera_policy(session.course), "summary": camera_summary(session), "status": session.status})
 
+
+
+
+@endpoint(["GET", "POST"])
+def activity_events(request, session_id):
+    """Student-visible browser observations, independent of optional camera use.
+
+    No clipboard content, URLs, key presses, or camera frames are accepted.
+    These signals are never scored or treated as proof of misconduct.
+    """
+    session = session_for(request.account, session_id)
+    if request.method == "POST":
+        require_student(request.account)
+        if len(request.body) > 65536:
+            raise LearningError("Activity event request is too large.", 413)
+        items = payload(request).get("events")
+        if not isinstance(items, list) or any(
+            not isinstance(item, dict) or item.get("kind") not in BROWSER_ACTIVITY_KINDS for item in items
+        ):
+            raise LearningError("Only tab-switch and blocked-paste observations are allowed.")
+        rows = save_events(session, items)
+    else:
+        rows = session.camera_events.filter(kind__in=BROWSER_ACTIVITY_KINDS)[:2000]
+    summary = camera_summary(session)
+    return JsonResponse({
+        "events": [event_data(row) for row in rows],
+        "tab_switches": summary["tab_switches"],
+        "blocked_pastes": summary["blocked_pastes"],
+        "interpretation": OBSERVATION_NOTE,
+        "status": session.status,
+    })
 
 @endpoint(["POST"])
 def response(request, event_id):

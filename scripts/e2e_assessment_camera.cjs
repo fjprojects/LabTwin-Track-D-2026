@@ -46,7 +46,15 @@ async function api(path, token, data, method = 'POST') {
       sessionStorage.setItem('labtwin_access_token', token);
       // Observe, without altering, real worker outputs and browser tracks.
       const OriginalWorker = window.Worker; window.cameraSamples = { visible: 0, absent: 0 };
-      window.Worker = class extends OriginalWorker { constructor(...args) { super(...args); this.addEventListener('message', event => { if (event.data.type === 'sample') window.cameraSamples[event.data.pose ? 'visible' : 'absent']++; }); } };
+      window.Worker = class extends OriginalWorker {
+        constructor(...args) { super(...args); this.addEventListener('message', event => { if (event.data.type === 'sample') window.cameraSamples[event.data.pose ? 'visible' : 'absent']++; }); }
+        postMessage(data, ...args) {
+          // Explicit fault injection for real component deadlines. Ordinary
+          // model/cue checks above still use actual MediaPipe worker results.
+          if ((window.stallCameraModel && data.type === 'init') || (window.stallCameraFrame && data.type === 'frame')) { data.frame?.close(); return; }
+          return super.postMessage(data, ...args);
+        }
+      };
       const media = navigator.mediaDevices, original = media.getUserMedia.bind(media); window.cameraTracks = [];
       media.getUserMedia = async constraints => {
         if (window.cameraPermissionDenied) throw new DOMException('Permission denied for camera test', 'NotAllowedError');
@@ -64,12 +72,12 @@ async function api(path, token, data, method = 'POST') {
     await camera.getByLabel(/I agree to the optional local camera/).check();
     await camera.getByLabel(/Offer optional eyes-closed/).check();
     await page.evaluate(() => { window.cameraPermissionDenied = true; });
-    await camera.getByRole('button', { name: 'Turn on assessment camera', exact: true }).click();
+    await camera.getByRole('button', { name: /Turn on assessment camera|Retry camera setup/ }).click();
     await camera.getByRole('alert').filter({ hasText: 'Camera permission was denied' }).waitFor();
     assert.equal(await page.evaluate(() => window.cameraTracks.length), 0);
     assert.ok(await page.getByRole('button', { name: 'Submit answer 1', exact: true }).isVisible());
     await page.evaluate(() => { window.cameraPermissionDenied = false; });
-    await camera.getByRole('button', { name: 'Turn on assessment camera', exact: true }).click();
+    await camera.getByRole('button', { name: /Turn on assessment camera|Retry camera setup/ }).click();
     await camera.getByRole('button', { name: 'Recalibrate camera', exact: true }).waitFor({ timeout: 60000 });
     await camera.getByRole('complementary', { name: 'Camera instruction' }).waitFor({ timeout: 60000 });
     await camera.getByText(/Keeping your eyes open is equally acceptable/).waitFor();
@@ -78,14 +86,33 @@ async function api(path, token, data, method = 'POST') {
     await camera.getByLabel('Optional reasoning explanation').fill('I follow the links from the first node to reason about the list.');
     await camera.getByRole('button', { name: 'Save reasoning explanation', exact: true }).click();
     await camera.getByRole('complementary', { name: 'Camera instruction' }).waitFor({ state: 'hidden' });
-    await camera.getByRole('button', { name: 'Stop assessment camera', exact: true }).click();
+    // Revoking consent must stop streams and worker analysis immediately.
+    await camera.getByLabel(/I agree to the optional local camera/).uncheck();
     assert.ok(await page.evaluate(() => window.cameraTracks.every(track => track.readyState === 'ended')));
+    await camera.getByText('Assessment camera analysis is off.', { exact: true }).waitFor();
+    assert.ok(!(await camera.getByRole('button', { name: 'Turn on assessment camera', exact: true }).isEnabled()));
+    const samplesAfterRevocation = await page.evaluate(() => window.cameraSamples.visible + window.cameraSamples.absent);
+    await page.waitForTimeout(800);
+    assert.equal(await page.evaluate(() => window.cameraSamples.visible + window.cameraSamples.absent), samplesAfterRevocation);
+    await camera.getByLabel(/I agree to the optional local camera/).check();
     await page.evaluate(() => { window.delayCameraPermission = true; });
     await camera.getByRole('button', { name: 'Turn on assessment camera', exact: true }).click();
     await camera.getByRole('button', { name: 'Stop assessment camera', exact: true }).click();
     await page.evaluate(() => { window.delayCameraPermission = false; window.resolveCameraPermission(); });
     await page.waitForFunction(() => window.cameraTracks.length >= 2 && window.cameraTracks.every(track => track.readyState === 'ended'));
     console.log('Real camera model, consent, automatic cue, optional eye closure, explanation and stop checks passed.');
+
+    await page.evaluate(() => { window.stallCameraModel = true; });
+    await camera.getByRole('button', { name: /Turn on assessment camera|Retry camera setup/ }).click();
+    await camera.getByRole('alert').filter({ hasText: 'Camera model loading timed out' }).waitFor({ timeout: 55000 });
+    assert.ok(await page.evaluate(() => window.cameraTracks.every(track => track.readyState === 'ended')));
+    assert.ok(await page.getByRole('button', { name: 'Submit answer 1', exact: true }).isVisible());
+    await page.evaluate(() => { window.stallCameraModel = false; window.stallCameraFrame = true; });
+    await camera.getByRole('button', { name: 'Retry camera setup', exact: true }).click();
+    await camera.getByRole('alert').filter({ hasText: 'Local camera analysis stopped responding' }).waitFor({ timeout: 25000 });
+    assert.ok(await page.evaluate(() => window.cameraTracks.every(track => track.readyState === 'ended')));
+    await page.evaluate(() => { window.stallCameraFrame = false; });
+    console.log('Injected model/inference stalls terminate, stop capture and keep the assessment usable.');
 
     await tp.getByRole('button', { name: 'Refresh assessment activity', exact: true }).click();
     await tp.getByRole('button', { name: /Review assessment/ }).first().click();
@@ -95,7 +122,7 @@ async function api(path, token, data, method = 'POST') {
 
     // Active capture must stop after access is removed, without recording a
     // cheating verdict or requiring a failed assessment submission first.
-    await camera.getByRole('button', { name: 'Turn on assessment camera', exact: true }).click();
+    await camera.getByRole('button', { name: /Turn on assessment camera|Retry camera setup/ }).click();
     await camera.getByRole('button', { name: 'Recalibrate camera', exact: true }).waitFor({ timeout: 60000 });
     await api(`classrooms/${room.id}/students/${student.account.student_id}/`, teacher.token, {}, 'DELETE');
     await page.waitForFunction(() => window.cameraTracks.every(track => track.readyState === 'ended'), null, { timeout: 15000 });

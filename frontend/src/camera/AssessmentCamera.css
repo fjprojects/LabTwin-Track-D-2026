@@ -12,4 +12,8 @@
 .cameraTimeline li { margin: .7rem 0; padding: .7rem; background: #f5f8f7; border-radius: 8px; }
 .cameraTimeline time { display: block; font-size: .85rem; color: #53655f; }
 .cameraLive { color: #17633e; font-weight: 650; }
+.cameraSetup { padding-left: 1.3rem; color: #334d43; line-height: 1.6; }
+.cameraSetup li { margin: .35rem 0; }
+.cameraCalibration { flex-direction: column; }
+.cameraCalibration progress { width: min(100%, 320px); accent-color: #17633e; }
 @media (max-width: 600px) { .cameraLayout { grid-template-columns: 1fr; } .cameraPreview { max-height: 170px; width: min(100%, 260px); } }

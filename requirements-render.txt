@@ -13,3 +13,6 @@ chromadb==1.1.1
 python-pptx>=1.0,<2
 reportlab>=4.4,<5
 pymupdf>=1.26,<1.28
+# Optional durable Supabase PostgreSQL + private S3 storage
+psycopg[binary]>=3.2,<4
+boto3>=1.35,<2

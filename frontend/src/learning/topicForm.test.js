@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { topicPayload } from "./topicForm.js";
+import { topicPayload, duplicateTopicMessage } from "./topicForm.js";
 
 const topics = Object.freeze([Object.freeze({ id: 7, name: "Polymorphism" }), Object.freeze({ id: 11, name: "Inheritance" })]);
 
@@ -35,4 +35,12 @@ test("a topic absent from the selected course remains a valid new name", () => {
 test("the maximum name length is allowed and validation retains course topic data", () => {
   assert.equal(topicPayload("x".repeat(200), "11", topics).name.length, 200);
   assert.deepEqual(topics, [{ id: 7, name: "Polymorphism" }, { id: 11, name: "Inheritance" }]);
+});
+
+test("duplicate warnings appear while typing without mutating course topics", () => {
+  assert.match(duplicateTopicMessage("  Polymorphism ", topics), /already exists/);
+  for (const value of ["", " ", undefined, "Overriding"]) assert.equal(duplicateTopicMessage(value, topics), "");
+  // Match the backend's exact-name duplicate rule, including letter case.
+  assert.equal(duplicateTopicMessage("polymorphism", topics), "");
+  assert.equal(topics[0].name, "Polymorphism");
 });

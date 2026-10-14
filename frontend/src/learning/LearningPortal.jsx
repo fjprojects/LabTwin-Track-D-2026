@@ -17,7 +17,7 @@ import RecoveryPhone from "../auth/RecoveryPhone";
 import "./LearningPortal.css";
 
 const studentNav = ["Dashboard", "Ask LabTwin", "My Courses", "Learning Path", "Practice", "Assessments", "Assignments", "Viva", "Mastery Map", "Progress"];
-const teacherNav = ["Dashboard", "Classes", "Course Materials", "Assignments", "Students", "Assessments", "AI Insights", "Evaluation", "Reports"];
+const teacherNav = ["Dashboard", "Ask LabTwin", "Classes", "Course Materials", "Assignments", "Students", "Assessments", "AI Insights", "Evaluation", "Reports"];
 
 export default function LearningPortal({ account, onSignOut, onSwitchAccount, renderClassrooms, renderLab }) {
   const teacher = account.role === "teacher";
@@ -26,8 +26,8 @@ export default function LearningPortal({ account, onSignOut, onSwitchAccount, re
   const teacherSession = useRef(null);
   const course = courses.find(item => item.id === Number(courseId)) || courses[0] || null;
   async function refresh() {
-    try { const data = await get("courses/"); setCourses(data.courses); setError(""); }
-    catch (err) { setError(errorText(err)); }
+    try { const data = await get("courses/"); setCourses(data.courses); setError(""); return data; }
+    catch (err) { setError(errorText(err)); return null; }
   }
   useEffect(() => { refresh(); setPage(previous => previous === "Demo Mode" ? previous : "Dashboard"); }, [account.id]);
   useEffect(() => {
@@ -67,8 +67,8 @@ export default function LearningPortal({ account, onSignOut, onSwitchAccount, re
       {!course && page === "Dashboard" && <section className="learningHero"><h2>{teacher ? "Bring your classroom knowledge to life." : "Your learning starts with your classroom."}</h2><p>{teacher ? "Create a classroom, add a course and upload materials. Or prepare the guided demo to explore the full workflow." : "Join your teacher's classroom to access source-grounded tutoring, adaptive practice and your mastery map."}</p><button onClick={() => setPage(teacher ? "Classes" : "My Courses")}>{teacher ? "Open Classes" : "Join a classroom"}</button><button className="secondary" onClick={() => setPage("Demo Mode")}>Explore Demo Mode</button></section>}
       {page === "Dashboard" && course && (teacher ? <TeacherInsights key={`teacher-dashboard-${course.id}`} dashboard course={course} revision={revision} onSource={onSource} /> : <StudentDashboard course={course} revision={revision} onNavigate={setPage} />)}
       {noCoursePages.includes(page) && !course && <section className="classroomBox"><h2>Choose a course to continue</h2><p>{teacher ? "Create a course below or from Course Materials." : "Join a classroom and ask your teacher to add a course."}</p></section>}
-      {page === "Ask LabTwin" && course && <AskLabTwin key={course.id} course={course} material={lecture} onSource={onSource} onClearLecture={() => setLecture(null)} />}
-      {teacher && ["Classes", "Course Materials"].includes(page) && <CourseSetup key={`${page}-${revision}`} courses={courses} onRefresh={refresh} onSelect={setCourseId} />}
+      {page === "Ask LabTwin" && course && <AskLabTwin key={`${account.id}-${course.id}`} course={course} role={account.role} material={lecture} onSource={onSource} onClearLecture={() => setLecture(null)} onCompleted={changed} />}
+      {teacher && ["Classes", "Course Materials"].includes(page) && <CourseSetup key={`${page}-${revision}`} courses={courses} selectedCourseId={course?.id} onRefresh={refresh} onSelect={setCourseId} />}
       {course && (page === "Course Materials" || (!teacher && page === "My Courses")) && <CourseMaterials key={course.id} course={course} teacher={teacher} onRefresh={refresh} onAsk={material => { setLecture(material); setPage("Ask LabTwin"); }} onSource={onSource} />}
       {!teacher && page === "Learning Path" && course && <LearningPath course={course} revision={revision} onSource={onSource} onPractice={onPractice} />}
       {!teacher && page === "Mastery Map" && course && <MasteryMap course={course} revision={revision} onSource={onSource} onPractice={onPractice} />}
@@ -82,6 +82,6 @@ export default function LearningPortal({ account, onSignOut, onSwitchAccount, re
       {!teacher && <section hidden={page !== "Practice"}><div className="practiceTabs"><button aria-pressed={practiceMode === "adaptive"} onClick={() => setPracticeMode("adaptive")}>Adaptive practice</button><button aria-pressed={practiceMode === "lab"} onClick={() => setPracticeMode("lab")}>Programming lab · existing workflow</button></div><div hidden={practiceMode !== "adaptive"}>{course ? <PracticeWorkspace key={course.id} course={course} initialTopic={practiceTopic} onSource={onSource} onCompleted={changed} onViva={onViva} /> : <p>Select a course for adaptive practice. The programming lab is ready in the next tab.</p>}</div><div hidden={practiceMode !== "lab"} className="legacyLab">{renderLab()}</div></section>}
       <div hidden={!classVisible}>{renderClassrooms({ mode: page, classroomId: course?.classroom_id, onSource, onViva, onChanged: changed })}</div>
     </main>
-    <SourceViewer sourceId={sourceId} onAsk={source => { setLecture({ id: source.material_id, title: source.title, course_id: source.course_id, source_id: source.id }); setCourseId(source.course_id); setPage("Ask LabTwin"); setSourceId(null); }} onClose={() => { setSourceId(null); history.replaceState(null, "", location.pathname + location.search); }} />
+    <SourceViewer sourceId={sourceId} onAsk={source => { setLecture({ id: source.material_id, title: source.title, course_id: source.course_id, source_id: source.id }); setCourseId(source.course_id); setPage("Ask LabTwin"); setSourceId(null); history.replaceState(null, "", location.pathname + location.search); }} onClose={() => { setSourceId(null); history.replaceState(null, "", location.pathname + location.search); }} />
   </div>;
 }

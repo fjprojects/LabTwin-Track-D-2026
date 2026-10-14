@@ -13,7 +13,8 @@
     "test:camera": "node --test src/camera/*.test.js",
     "test:api": "node --test src/api.test.js",
     "test:auth": "node --test src/auth/*.test.js",
-    "test:topics": "node --test src/learning/topicForm.test.js"
+    "test:topics": "node --test src/learning/topicForm.test.js",
+    "test:learning": "node --test src/learning/*.test.js"
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "1.0.1",

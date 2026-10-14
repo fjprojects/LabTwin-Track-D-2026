@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import api from "../api";
 import { base, get, post, errorText } from "./api";
 import SourceLinks from "./SourceLinks";
+import { topicPayload } from "./topicForm";
 
 export function CourseSetup({ courses, onRefresh, onSelect }) {
   const [rooms, setRooms] = useState([]), [form, setForm] = useState({ classroom_id: "", name: "", language: "Python" }), [error, setError] = useState(""), [busy, setBusy] = useState(false);
@@ -21,6 +22,8 @@ export function CourseSetup({ courses, onRefresh, onSelect }) {
 export default function CourseMaterials({ course, teacher, onRefresh, onAsk, onSource }) {
   const [materials, setMaterials] = useState([]), [version, setVersion] = useState(0), [detail, setDetail] = useState(null), [error, setError] = useState(""), [busy, setBusy] = useState(false);
   const [upload, setUpload] = useState(null), [topicId, setTopicId] = useState(""), [captions, setCaptions] = useState(""), [topicName, setTopicName] = useState(""), [prerequisite, setPrerequisite] = useState("");
+  const [topicError, setTopicError] = useState("");
+  const topicSubmitting = useRef(false);
   const [search, setSearch] = useState(""); const media = useRef(null), input = useRef(null);
   const refresh = useRef(onRefresh);
   useEffect(() => { refresh.current = onRefresh; }, [onRefresh]);
@@ -54,15 +57,21 @@ export default function CourseMaterials({ course, teacher, onRefresh, onAsk, onS
     } catch (err) { setError(errorText(err)); } finally { setBusy(false); }
   }
   async function addTopic(event) {
-    event.preventDefault(); setBusy(true); setError("");
-    try { await post(`courses/${course.id}/topics/`, { name: topicName, prerequisites: prerequisite ? [Number(prerequisite)] : [] }); setTopicName(""); await onRefresh(); }
-    catch (err) { setError(errorText(err)); } finally { setBusy(false); }
+    event.preventDefault();
+    if (busy || topicSubmitting.current) return;
+    let data;
+    try { data = topicPayload(topicName, prerequisite, course.topics); }
+    catch (err) { setTopicError(err.message); return; }
+    topicSubmitting.current = true; setBusy(true); setTopicError("");
+    try { await post(`courses/${course.id}/topics/`, data); setTopicName(""); setPrerequisite(""); await onRefresh(); }
+    catch (err) { setTopicError(errorText(err)); if (err.response?.status === 400) await onRefresh(); }
+    finally { topicSubmitting.current = false; setBusy(false); }
   }
   async function open(item) { try { const data = await get(`materials/${item.id}/`); setDetail(data.material); setSearch(""); } catch (err) { setError(errorText(err)); } }
   async function retry(item) { setBusy(true); setError(""); try { const data = await post(`materials/${item.id}/retry/`, captions.trim() ? { captions: JSON.parse(captions) } : {}); setVersion(v => v + 1); if (data.material.status === "failed") setError(data.material.error); await onRefresh(); } catch (err) { setError(errorText(err)); } finally { setBusy(false); } }
   const units = detail?.units?.filter(unit => !search.trim() || unit.text.toLowerCase().includes(search.toLowerCase())) || [];
   return <>
-    {teacher && <section className="classroomBox"><h2>Course topics and settings</h2><form className="compactForm" onSubmit={addTopic}><label>New topic<input required maxLength={200} value={topicName} onChange={e => setTopicName(e.target.value)} /></label><label>Prerequisite<select aria-label="Prerequisite" value={prerequisite} onChange={e => setPrerequisite(e.target.value)}><option value="">None</option>{course.topics.map(topic => <option value={topic.id} key={topic.id}>{topic.name}</option>)}</select></label><button disabled={busy}>Add topic</button></form><p>{course.topics.map(t => t.name).join(" → ") || "Add topics to enable mastery and adaptive practice."}</p>
+    {teacher && <section className="classroomBox"><h2>Course topics and settings</h2><form className="compactForm" onSubmit={addTopic}><label>New topic<input required maxLength={200} value={topicName} onChange={e => setTopicName(e.target.value)} /></label><label>Prerequisite<select aria-label="Prerequisite" value={prerequisite} onChange={e => setPrerequisite(e.target.value)}><option value="">None</option>{course.topics.map(topic => <option value={topic.id} key={topic.id}>{topic.name}</option>)}</select></label><button disabled={busy}>{topicSubmitting.current ? "Adding topic…" : "Add topic"}</button></form>{topicError && <p role="alert">{topicError}</p>}<p>{course.topics.map(t => t.name).join(" → ") || "Add topics to enable mastery and adaptive practice."}</p>
       <label className="checkLabel"><input type="checkbox" checked={course.allow_solutions} onChange={async e => { try { await api.patch(`${base}/courses/${course.id}/`, { allow_solutions: e.target.checked }); await onRefresh(); } catch (err) { setError(errorText(err)); } }} />Allow complete practice solutions after coaching</label>
       <label className="checkLabel"><input type="checkbox" checked={course.activity_verification} onChange={async e => { try { await api.patch(`${base}/courses/${course.id}/`, { activity_verification: e.target.checked }); await onRefresh(); } catch (err) { setError(errorText(err)); } }} />Offer fresh conceptual verification questions when assignment activity warrants review</label>
     </section>}

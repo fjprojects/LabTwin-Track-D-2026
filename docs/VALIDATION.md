@@ -69,3 +69,38 @@ The reported indefinite Processing state was traced to local uploads requiring a
 The integration check initially expected HTTP 200 for created practice/viva sessions, while the actual API correctly returns 201. Its assertions were corrected and the entire check rerun successfully. The first combined regression attempt ended before completion; the subsequent complete run passed. No test was silenced or disabled.
 
 The user's actual failing PDF/server logs were not provided, so fixture success is not a claim about every page of that file. The integration check uses an explicit offline hash index and disables remote AI, while exercising actual extraction, queues, retrieval, graders and evaluators. Groq quality, uncaptained speech, arbitrary raster interpretation, neural embedding downloads and semantic judge evaluation still need live configuration. Java execution was not validated in this environment because `javac` is unavailable; Python/C paths are covered. The real-model camera/browser evidence above is from 1 October and was not rerun on 3 October; the backend camera and policy regressions were rerun.
+
+## Add topic validation and form feedback — 14 October 2026
+
+The topic endpoint previously used the same rejection message for duplicate names
+and foreign prerequisites, and the form rendered topic errors under the upload
+section. It also coerced non-text JSON names into stored topic names. The focused
+repair validates text names and positive integer prerequisite IDs, preserves
+course ownership and duplicate rejection, and displays each error beside the
+topic form. The form checks known invalid input before POST, prevents concurrent
+submissions, and refreshes course topics after a server validation rejection.
+Existing topics and descriptions are retained; no migration or dependency change
+was introduced.
+
+| Check | Executed result |
+| --- | --- |
+| Unchanged baseline | 205 backend tests passed after installing the documented application/evaluation runtimes |
+| Complete backend suite | 214 passed, including 9 new topic creation/error/isolation tests |
+| Frontend regression | 25 passed: 10 camera policy, 4 API, 4 recovery-link and 7 topic payload tests |
+| Deployment regression | 17 private-deployment and 13 original-media tests passed |
+| Build/lint/system checks | Passed; no migration drift; fresh temporary deployment SQLite migrated through `0011` |
+| Deployment security check | Existing intentional `security.W021` remained visible for the temporary hostname |
+| Real browser topic form | Chromium 153 rendered the production frontend against the disposable Django server; valid topic/prerequisite creation, whitespace/known duplicate prevention, a real stale-duplicate HTTP 400 with inline feedback and refresh, rapid-submit protection, and course isolation passed |
+
+Run the payload tests with `npm run test:topics` from `frontend`. With the existing
+disposable `scripts/e2e_server.py` running and Playwright configured as in the demo
+guide, run `node scripts/e2e_topics.cjs`. The browser test only accepts a localhost
+test server. Its initial harness expected a closed select's options to be visible;
+that expectation was corrected to attachment plus actual option selection and
+the complete browser test passed. No existing test was disabled.
+
+The user's exact failed request body/response was not supplied, so the console's
+400 alone does not establish which validation rule rejected their local input.
+This repair makes that reason visible without accepting invalid data. Render
+auto-deploy was verified disabled, and no Render deployment, environment, live
+database or uploaded-media change was performed.

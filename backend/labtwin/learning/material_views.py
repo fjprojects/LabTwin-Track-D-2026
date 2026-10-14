@@ -53,13 +53,18 @@ def course_settings(request, course_id):
 @endpoint(["POST"], teacher=True)
 def topics(request, course_id):
     course, data = course_for(request.account, course_id), payload(request)
-    name = str(data.get("name", "")).strip()
+    name = data.get("name", "")
+    if not isinstance(name, str) or not name.strip() or len(name.strip()) > 200:
+        raise LearningError("Enter a topic name of up to 200 characters.")
+    name = name.strip()
     ids = data.get("prerequisites", [])
-    if not name or len(name) > 200 or not isinstance(ids, list):
-        raise LearningError("Enter a topic name and prerequisite IDs.")
+    if not isinstance(ids, list) or any(not isinstance(value, int) or isinstance(value, bool) or value <= 0 for value in ids):
+        raise LearningError("Prerequisites must be a list of positive topic IDs.")
     dependencies = list(course.topics.filter(id__in=ids))
-    if set(ids) != {t.id for t in dependencies} or course.topics.filter(name=name).exists():
-        raise LearningError("Use unique topics and prerequisites from this course.")
+    if set(ids) != {t.id for t in dependencies}:
+        raise LearningError("Choose prerequisites from this course. Refresh the course if a topic is no longer available.")
+    if course.topics.filter(name=name).exists():
+        raise LearningError("A topic with this name already exists in this course. Use a different name.")
     with transaction.atomic():
         topic = CourseTopic.objects.create(course=course, name=name, description=str(data.get("description", ""))[:6000], position=course.topics.count())
         topic.prerequisites.set(dependencies)

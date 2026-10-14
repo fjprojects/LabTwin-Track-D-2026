@@ -20,7 +20,8 @@ from .vectors import remove_vectors
 def course_data(course):
     # The camera stays off until a student explicitly opts in and grants permission.
     from .camera import camera_policy
-    return {"id": course.id, "name": course.name, "description": course.description, "classroom_id": course.classroom_id, "classroom_name": course.classroom.name, "language": course.language, "allow_solutions": course.allow_solutions, "activity_verification": course.activity_verification, "camera_policy": camera_policy(course), "is_demo": course.is_demo, "topics": [{"id": t.id, "name": t.name, "description": t.description, "parent_id": t.parent_id, "concepts": t.concepts, "taxonomy_evidence": t.taxonomy_evidence, "prerequisites": list(t.prerequisites.values_list("id", flat=True))} for t in course.topics.prefetch_related("prerequisites")], "material_count": course.materials.filter(status="ready").count()}
+    from .taxonomy import assessment_topic_eligible
+    return {"id": course.id, "name": course.name, "description": course.description, "classroom_id": course.classroom_id, "classroom_name": course.classroom.name, "language": course.language, "allow_solutions": course.allow_solutions, "activity_verification": course.activity_verification, "camera_policy": camera_policy(course), "is_demo": course.is_demo, "topics": [{"id": t.id, "name": t.name, "description": t.description, "parent_id": t.parent_id, "concepts": t.concepts, "taxonomy_evidence": t.taxonomy_evidence, "assessment_eligible": assessment_topic_eligible(t), "prerequisites": list(t.prerequisites.values_list("id", flat=True))} for t in course.topics.prefetch_related("prerequisites")], "material_count": course.materials.filter(status="ready").count()}
 
 
 @endpoint(["GET", "POST"])

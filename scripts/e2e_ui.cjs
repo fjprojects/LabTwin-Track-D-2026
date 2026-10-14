@@ -87,7 +87,7 @@ const { launchBrowser } = require('./e2e_browser.cjs');
   async function pageLayouts(role) {
     const pages = role === 'teacher'
       ? ['Dashboard', 'Ask LabTwin', 'Classes', 'Course Materials', 'Assignments', 'Students', 'Assessments', 'AI Insights', 'Evaluation', 'Reports', 'Demo Mode']
-      : ['Dashboard', 'Ask LabTwin', 'My Courses', 'Learning Path', 'Practice', 'Assessments', 'Assignments', 'Viva', 'Mastery Map', 'Progress', 'Demo Mode'];
+      : ['Dashboard', 'Ask LabTwin', 'My Courses', 'Learning Path', 'Practice', 'Programming Lab', 'Assessments', 'Assignments', 'Viva', 'Mastery Map', 'Progress', 'Demo Mode'];
     for (const name of pages) {
       await nav(name);
       await page.getByRole('heading', { name, exact: true, level: 1 }).waitFor();
@@ -234,7 +234,9 @@ const { launchBrowser } = require('./e2e_browser.cjs');
       await noOverflow();
       await screenshot('source-page6-' + size.width);
     }
-    await dialog.getByRole('button', { name: 'Close source', exact: true }).click();
+    await page.keyboard.press('Escape');
+    await dialog.waitFor({ state: 'hidden' });
+    assert.equal(await page.evaluate(() => !!document.activeElement?.closest('.answerCard')), true, 'Escape returns keyboard focus to the citation');
     await page.setViewportSize({ width: 1366, height: 768 });
     await api(teacher.token, 'learning/topics/' + topicId + '/bank/', {
       title: 'Dispatch timing check', kind: 'short_answer', difficulty: 1, language: 'Java',
@@ -306,10 +308,39 @@ const { launchBrowser } = require('./e2e_browser.cjs');
       assert.equal(saved.assessment.status, 'completed');
       assert.equal(saved.assessment.report.score, 100);
     }
+    const pathData = await read(student.token, 'learning/courses/' + course.id + '/path/');
+    await nav('Dashboard');
+    for (const [label, expected] of [
+      ['Strong topics', pathData.topics.filter(t => t.state === 'Strong').length],
+      ['Developing', pathData.topics.filter(t => t.state === 'Developing').length],
+      ['Needs practice', pathData.topics.filter(t => t.state === 'Needs Practice').length],
+      ['Scored attempts', pathData.topics.reduce((total, t) => total + t.attempts, 0)],
+    ]) {
+      await page.locator('.statCard').filter({ has: page.getByText(label, { exact: true }) }).getByText(String(expected), { exact: true }).waitFor();
+    }
     await nav('Ask LabTwin');
     await ask('Explain quantum entanglement');
     await page.locator('.answerCard').first().getByText('More material needed', { exact: true }).waitFor();
     assert.equal(await page.locator('.answerCard').first().getByRole('button', { name: 'Check my understanding' }).count(), 0);
+    await page.locator('.sidebarFooter').getByRole('button', { name: 'Sign out', exact: true }).click();
+    await page.getByRole('button', { name: 'Sign in', exact: true }).waitFor();
+    // The earlier sign-out intentionally revoked the original teacher token.
+    // Use the real login form for a new session, rather than reusing that token.
+    await page.getByLabel('Username', { exact: true }).fill(teacher.account.username);
+    await page.getByLabel('Password', { exact: true }).fill('Temporary-UI-' + stamp + '!');
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await page.getByRole('heading', { name: 'Dashboard', exact: true }).waitFor();
+    await nav('AI Insights');
+    const activeTeacherToken = await page.evaluate(() => sessionStorage.getItem('labtwin_access_token'));
+    const insights = await read(activeTeacherToken, 'learning/courses/' + course.id + '/insights/');
+    for (const topic of insights.topics) {
+      const row = page.getByRole('row').filter({ has: page.getByRole('cell', { name: topic.name, exact: true }) });
+      await row.waitFor();
+      const values = await row.getByRole('cell').allTextContents();
+      assert.equal(values[1], topic.average_mastery == null ? 'Unassessed' : `${topic.average_mastery}%`);
+      assert.equal(values[2], `${topic.assessed_students} / ${topic.enrolled_students}`);
+      assert.equal(values[3], String(topic.needs_practice));
+    }
     await page.locator('.sidebarFooter').getByRole('button', { name: 'Sign out', exact: true }).click();
     await page.getByRole('button', { name: 'Sign in', exact: true }).waitFor();
     assert.deepEqual(errors, []);

@@ -48,6 +48,10 @@ jobs:
           npm run test:camera
           npm run test:learning
           npm run build
+      - name: Install media tools used by existing demo regressions
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
       - name: Install isolated backend test dependencies
         run: python -m pip install "Django>=6.0,<6.1" pypdf reportlab "python-pptx>=1.0,<2" "pymupdf>=1.26,<1.28" Pillow groq "chromadb==1.1.1"
       - name: Backend authorization, topics, sources, feedback and mastery regressions

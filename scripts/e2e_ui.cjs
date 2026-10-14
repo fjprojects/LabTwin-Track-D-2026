@@ -115,6 +115,7 @@ const { launchBrowser } = require('./e2e_browser.cjs');
     assert.equal((await uploaded.json()).material.status, 'ready');
 
     await signIn(teacher);
+    await page.getByRole('heading', { name: 'Class mastery by topic', exact: true }).waitFor();
     await accountLayout('teacher');
     await nav('Course Materials');
     const topics = page.locator('.topicSettings');
@@ -129,6 +130,23 @@ const { launchBrowser } = require('./e2e_browser.cjs');
     await topics.getByRole('alert').filter({ hasText: 'already exists in this course' }).waitFor();
     assert.equal(await topics.getByLabel('New topic', { exact: true }).getAttribute('aria-invalid'), 'true');
     await screenshot('teacher-topics');
+    await nav('Assessments');
+    await page.getByRole('heading', { name: 'Adaptive question bank', exact: true }).waitFor();
+    for (const format of ['quiz', 'short_answer', 'numerical', 'code']) {
+      await page.getByLabel('Question type', { exact: true }).selectOption(format);
+      for (const size of [{ width: 1366, height: 768 }, { width: 390, height: 844 }, { width: 320, height: 568 }]) {
+        await page.setViewportSize(size);
+        await noOverflow();
+      }
+    }
+    await screenshot('teacher-question-editor');
+    await nav('AI Insights');
+    await page.getByRole('heading', { name: 'Class mastery by topic', exact: true }).waitFor();
+    await noOverflow();
+    const table = page.locator('.rosterScroll').first();
+    assert.equal(await table.evaluate(element => element.scrollWidth > element.clientWidth), true, 'Wide table should scroll inside its container on mobile');
+    await screenshot('teacher-table');
+    await page.setViewportSize({ width: 1366, height: 768 });
 
     await nav('Ask LabTwin');
     const teacherAnswer = await ask('Dynamic method dispatch on page 6');

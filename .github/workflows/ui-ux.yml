@@ -1,0 +1,93 @@
+name: LabTwin UI and learning regression checks
+
+on:
+  push:
+    branches: [fix/ui-ux-20261014]
+    paths:
+      - 'frontend/**'
+      - 'backend/labtwin/test_ui_permissions.py'
+      - 'scripts/e2e_ui.cjs'
+      - '.github/workflows/ui-ux.yml'
+  pull_request:
+    branches: [hardening/track-d-demo-20261003]
+
+permissions:
+  contents: read
+
+jobs:
+  ui-learning:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      DJANGO_SETTINGS_MODULE: backend.test_settings
+      LABTWIN_E2E_DATABASE: /tmp/labtwin-ui.sqlite3
+      LABTWIN_E2E_VECTOR_ROOT: /tmp/labtwin-ui-vectors
+      LABTWIN_UI_SCREENSHOTS: /tmp/labtwin-ui-screenshots
+      NODE_PATH: /tmp/labtwin-browser/node_modules
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+      - name: Lint, frontend tests and production build
+        working-directory: frontend
+        env:
+          VITE_API_URL: http://127.0.0.1:8000/api
+        run: |
+          npm run lint
+          npm run test:api
+          npm run test:auth
+          npm run test:camera
+          npm run test:learning
+          npm run build
+      - name: Install media tools used by existing demo regressions
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+      - name: Install isolated backend test dependencies
+        run: python -m pip install "Django>=6.0,<6.1" pypdf reportlab "python-pptx>=1.0,<2" "pymupdf>=1.26,<1.28" Pillow groq "chromadb==1.1.1"
+      - name: Backend authorization, topics, sources, feedback and mastery regressions
+        working-directory: backend
+        run: |
+          python manage.py test labtwin.test_topic_creation labtwin.test_ui_permissions labtwin.test_learning labtwin.test_track_d.TrackDTests.test_conversation_reading_is_not_mastery_but_check_is_scored labtwin.test_track_d.TrackDTests.test_short_open_answer_is_pending_until_authorized_teacher_review labtwin.test_track_d.TrackDTests.test_diagnostic_scope_authorization_report_and_mastery labtwin.test_track_d.TrackDTests.test_verified_three_formats_and_private_keys --settings=backend.test_settings -v 2
+      - name: Install browser test runtime
+        run: |
+          npm install --prefix "/tmp/labtwin-browser" --no-save --package-lock=false playwright
+          "/tmp/labtwin-browser/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Browser checks at 100 percent CSS zoom
+        run: |
+          python scripts/e2e_server.py > "$RUNNER_TEMP/labtwin-e2e.log" 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid"' EXIT
+          python - <<'PY'
+          import time
+          import urllib.request
+          for attempt in range(60):
+              try:
+                  urllib.request.urlopen("http://127.0.0.1:8000", timeout=1).close()
+                  break
+              except Exception:
+                  time.sleep(0.5)
+          else:
+              raise SystemExit("Disposable browser server did not become ready")
+          PY
+          node scripts/e2e_topics.cjs
+          node scripts/e2e_ui.cjs
+      - name: Preserve fixture screenshots and test server log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-acceptance-fixtures
+          path: |
+            /tmp/labtwin-ui-screenshots
+            ${{ runner.temp }}/labtwin-e2e.log
+          if-no-files-found: ignore
+          retention-days: 7

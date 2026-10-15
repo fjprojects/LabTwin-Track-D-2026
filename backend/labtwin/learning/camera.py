@@ -4,7 +4,9 @@ Frames and face geometry stay on the student's device. These client-reported,
 fallible observations cannot establish intent, understanding or misconduct.
 """
 from collections import Counter
+from datetime import timedelta
 from django.db import transaction
+from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 
 from ..models import AssessmentCameraEvent
@@ -12,8 +14,9 @@ from .access import LearningError
 from .sources import citations_for
 
 OBSERVATION_NOTE = "Camera and browser observations are fallible student-device reports, not proof of copying. They do not change grades or mastery."
+BROWSER_ACTIVITY_KINDS = {"tab_hidden", "window_blur", "window_focus", "paste_allowed", "paste_blocked"}
 KINDS = {"camera_started", "camera_stopped", "camera_calibrated", "camera_cue",
-         "permission_denied", "camera_unavailable", "camera_analysis_error", "page_return", "paste"}
+         "permission_denied", "camera_unavailable", "camera_analysis_error", "page_return", "paste"} | BROWSER_ACTIVITY_KINDS
 REASONS = {"head_turned", "face_absent"}
 
 
@@ -29,6 +32,11 @@ def camera_summary(session):
     counts = Counter(row.kind for row in rows)
     cues = Counter(row.detail.get("reason") for row in rows if row.kind == "camera_cue")
     return {"counts": dict(counts), "cues": dict(cues), "total": len(rows),
+            "tab_switches": counts.get("tab_hidden", 0),
+            "blocked_pastes": counts.get("paste_blocked", 0),
+            "allowed_pastes": counts.get("paste_allowed", 0),
+            "focus_losses": counts.get("window_blur", 0),
+            "focus_returns": counts.get("window_focus", 0),
             "verification_answers": sum(row.detail.get("verification", {}).get("status") == "answered" for row in rows),
             "interpretation": OBSERVATION_NOTE}
 
@@ -72,13 +80,26 @@ def instruction(kind, detail):
     return "When ready, return to your answer and explain the reasoning in your own words."
 
 
+def completed_browser_sync_allowed(session, kind, detail):
+    """Drain pre-completion offline events briefly, without reopening assessment.
+
+    The timestamp is explicitly a client report, not independently verified.
+    This exception is limited to ungraded browser metadata; camera observations
+    and answers retain the existing completion rules.
+    """
+    if kind not in BROWSER_ACTIVITY_KINDS or not session.completed_at:
+        return False
+    observed = parse_datetime(detail.get("observed_at", ""))
+    return bool(observed and timezone.is_aware(observed)
+                and session.created_at <= observed <= session.completed_at
+                and timezone.now() <= session.completed_at + timedelta(minutes=15))
+
+
 @transaction.atomic
-def save_events(session, items):
+def save_events(session, items, *, allow_completed_browser_sync=False):
     if not isinstance(items, list) or not 1 <= len(items) <= 20:
         raise LearningError("Send 1–20 camera events.")
     session = type(session).objects.select_for_update().select_related("course").get(pk=session.pk)
-    if session.camera_events.count() + len(items) > 2000:
-        raise LearningError("Assessment camera event limit reached.", 409)
     rows = []
     for item in items:
         if not isinstance(item, dict) or item.get("kind") not in KINDS:
@@ -90,9 +111,13 @@ def save_events(session, items):
         if existing:
             rows.append(existing)
             continue
-        if session.status != "in_progress" and item["kind"] != "camera_stopped":
-            raise LearningError("This assessment has finished.", 409)
         detail = safe_detail(item)
+        if (session.status != "in_progress" and item["kind"] != "camera_stopped"
+                and not (allow_completed_browser_sync and completed_browser_sync_allowed(session, item["kind"], detail))):
+            raise LearningError("This assessment has finished.", 409)
+        # Retries of existing IDs must still succeed when the event cap is full.
+        if session.camera_events.count() >= 2000:
+            raise LearningError("Assessment camera event limit reached.", 409)
         question = None
         if item.get("question_id") is not None:
             pk = item["question_id"]

@@ -1,0 +1,66 @@
+{
+  "provenance": "Executed scripts/check_background_uploads.py using a fresh disposable database, real local child workers, real OCR/FFmpeg and an isolated DeepEval interpreter.",
+  "configuration": {
+    "embedding": "hash",
+    "remote_ai": false,
+    "database": "disposable",
+    "browser_verified": false
+  },
+  "uploads": [
+    {
+      "filename": "Data-Structures-Notes.pdf",
+      "status": "ready",
+      "units": 5,
+      "warnings": []
+    },
+    {
+      "filename": "Linked-Lists.pptx",
+      "status": "ready",
+      "units": 5,
+      "warnings": []
+    },
+    {
+      "filename": "Lecture-4.webm",
+      "status": "ready",
+      "units": 6,
+      "warnings": [
+        "Visual text was sampled every 30 seconds. Frame OCR does not represent every visual event."
+      ]
+    },
+    {
+      "filename": "scanned-notes.pdf",
+      "status": "ready",
+      "units": 2,
+      "warnings": []
+    },
+    {
+      "filename": "broken.pdf",
+      "status": "failed",
+      "units": 0,
+      "warnings": []
+    }
+  ],
+  "assessments": [
+    {
+      "format": "quiz",
+      "question_id": 2,
+      "verification": "verified",
+      "score": 100,
+      "feedback_citations": 1
+    },
+    {
+      "format": "short_answer",
+      "question_id": 3,
+      "verification": "verified",
+      "score": 100,
+      "feedback_citations": 1
+    },
+    {
+      "format": "numerical",
+      "question_id": 4,
+      "verification": "verified",
+      "score": 100,
+      "feedback_citations": 1
+    }
+  ]
+}

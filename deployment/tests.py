@@ -13,6 +13,10 @@ from django.urls import resolve
 
 from .access import COOKIE, SALT, LIFETIME, password_fingerprint
 from .settings import required_secret, production_signing_key
+from . import settings as deployment_settings
+
+# Snapshot before Django's database test runner substitutes an in-memory DB.
+_configured_database_name = deployment_settings.DATABASES["default"]["NAME"]
 
 
 @override_settings(ALLOWED_HOSTS=["demo.example.test"], CSRF_TRUSTED_ORIGINS=["https://demo.example.test"])
@@ -31,7 +35,10 @@ class DeploymentTests(SimpleTestCase):
         self.assertTrue(settings.CSRF_COOKIE_SECURE)
         self.assertEqual(settings.LABTWIN_PROCESS_MODE, "local")
         self.assertFalse(settings.LABTWIN_PROCESS_INLINE)
-        self.assertEqual(settings.DATABASES["default"]["NAME"].parent, settings.LABTWIN_DATA_DIR)
+        # Django replaces the active database name when this suite is run with
+        # database-backed media tests. Inspect the deployment configuration,
+        # rather than mistaking the temporary test DB for the production path.
+        self.assertEqual(_configured_database_name.parent, settings.LABTWIN_DATA_DIR)
         self.assertEqual(settings.LABTWIN_MEDIA_ROOT.parent, settings.LABTWIN_DATA_DIR)
 
     def test_missing_and_placeholder_secrets_fail_closed(self):

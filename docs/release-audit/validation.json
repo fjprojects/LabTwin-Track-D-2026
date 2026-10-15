@@ -1,0 +1,94 @@
+{
+  "validated_commit": "3dd464b79a6dc54eae4dcd2a469467ff846b64d6",
+  "branch": "audit/release-20261015",
+  "production_mutations": false,
+  "production_backup_verified": false,
+  "current_deployed_commit": "86898558574f8655edb35a4dfc6589bf0797de0d",
+  "regression": {
+    "backend_tests": 235,
+    "deployment_tests": 30,
+    "frontend_tests": 40,
+    "unchanged_camera_policy_tests": 10,
+    "new_camera_setup_tests": 3,
+    "backend_result": "PASS — tested successfully",
+    "frontend_build": "PASS — tested successfully",
+    "frontend_lint": "PASS — tested successfully",
+    "migrations": 11
+  },
+  "linux_ci": {
+    "run": 38641300790,
+    "job": 116117180129,
+    "url": "https://github.com/fjprojects/LabTwin-Track-D-2026/actions/runs/38641300790",
+    "result": "PASS — tested successfully",
+    "native_cases": {
+      "Python": 2,
+      "C": 2,
+      "Java": 2
+    },
+    "evidence": [
+      "2026-10-14T21:38:39.1593717Z Ran 235 tests in 144.001s",
+      "2026-10-14T21:38:47.3054472Z Ran 30 tests in 0.238s",
+      "2026-10-14T21:38:50.3235190Z PASS: 11 LabTwin migrations applied; fresh database integrity OK",
+      "2026-10-14T21:38:53.8098674Z Python: PASS — 2 real execution cases",
+      "2026-10-14T21:38:53.8099312Z C: PASS — 2 real execution cases",
+      "2026-10-14T21:38:53.8099889Z Java: PASS — 2 real execution cases",
+      "2026-10-14T21:38:58.2006854Z ℹ tests 40",
+      "2026-10-14T21:38:58.2007561Z ℹ pass 40",
+      "2026-10-14T21:38:58.2007918Z ℹ fail 0",
+      "2026-10-14T21:38:58.2008632Z ℹ skipped 0",
+      "2026-10-14T21:39:21.8927212Z PASS: reproducible camera fixture generated",
+      "2026-10-14T21:39:26.3660701Z PASS: real topic form creates valid topics/prerequisites, rejects blank/known duplicates before POST, renders and recovers from a real backend 400, prevents rapid repeated submissions and preserves course isolation.",
+      "2026-10-14T21:39:37.8332385Z PASS: full viewport width and inline SVG icons in both roles; all navigation pages at desktop/laptop/mobile widths; adaptive tutor/course panels; sidebar visibility at six viewports; real sign-out; topic feedback/duplicates; student-only checks and persisted mastery; PDF page 6 and fixed Close source; MCQ/short-answer reports with multiline answer boxes; no horizontal page overflow.",
+      "2026-10-14T21:39:39.8465388Z PASS: native answer copy/paste, multiline editing, controlled overlapping visibility/focus events, persisted counts after refresh, lost-response retry, teacher counts/timeline, metadata privacy and no activity mastery effect.",
+      "2026-10-14T21:39:58.4491867Z Real camera model, consent, automatic cue, optional eye closure, explanation and stop checks passed.",
+      "2026-10-14T21:40:54.8530736Z Injected model/inference stalls terminate, stop capture and keep the assessment usable.",
+      "2026-10-14T21:40:58.3972965Z Teacher evidence, metadata privacy and enrollment-removal camera revocation passed.",
+      "2026-10-14T21:41:00.0053040Z Course material and source viewer checks passed.",
+      "2026-10-14T21:41:02.8875421Z Guided demo code execution and reassessment passed.",
+      "2026-10-14T21:41:10.7826888Z PASS: multimodal upload/figures, citations, video seek, unsupported query, verified diagnostic/short answer/report, real failure/hints/retry, BKT/flow, adaptive follow-up, lecture search/viva/progress, teacher evidence/CSV, executed DeepEval/simulations/download and mobile layouts."
+    ]
+  },
+  "ui_ci": {
+    "run": 38641308036,
+    "result": "PASS — tested successfully"
+  },
+  "historical_failed_ci": {
+    "run": 38639481066,
+    "reason": "The new activity fixture read table cells before the asynchronous student row loaded.",
+    "fix_commit": "3dd464b79a6dc54eae4dcd2a469467ff846b64d6",
+    "assertions_weakened": false
+  },
+  "camera": {
+    "actual_mediapipe_model": true,
+    "device": "synthetic public face/blank feed",
+    "consent_off": true,
+    "permission_denied": true,
+    "consent_on": true,
+    "consent_revoked": true,
+    "model_and_inference_stall_recovery": true,
+    "physical_camera": "NOT TESTED"
+  },
+  "browser_activity": {
+    "controlled_visibility_focus": true,
+    "native_clipboard_shortcuts": true,
+    "duplicate_retry_and_refresh": true,
+    "teacher_timeline": true,
+    "activity_scoring": false,
+    "physical_tab_switches": "NOT TESTED"
+  },
+  "separate_storage_candidate": {
+    "commit": "44d26233c1c2ea9962fc63ea42e87ffafee3d35f",
+    "offline_tests": 8,
+    "merged_into_release": false,
+    "historical_live_check_run": 38382705879,
+    "live_persistence": "BLOCKED — external access or prerequisite missing"
+  },
+  "live_render": {
+    "result": "FAIL — reproducible defect",
+    "observation": "Wake-up interstitial followed by 502; reproduced after one normal reload",
+    "root_cause_confirmed": false
+  },
+  "public_preview": "BLOCKED — external access or prerequisite missing",
+  "webRTC_media_delivery": "NOT TESTED",
+  "simulation_not_human_study": true
+}

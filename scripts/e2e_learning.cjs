@@ -162,7 +162,19 @@ const origin = process.env.LABTWIN_E2E_URL || 'http://127.0.0.1:8000';
     await checkpoint('17. DeepEval actually executes the team benchmark and three four-session learner simulations. Offline metrics are labelled proxies; model-estimated gains are not claimed as causal human learning gains.');
     const evaluationDownload = page.waitForEvent('download');
     await page.getByRole('button', { name: 'Download evaluation evidence', exact: true }).click();
-    assert.match((await evaluationDownload).suggestedFilename(), /^labtwin-evaluation-\d+\.json$/);
+    const evidenceDownload = await evaluationDownload;
+    assert.match(evidenceDownload.suggestedFilename(), /^labtwin-evaluation-\d+\.json$/);
+    const evidenceFile = await evidenceDownload.path();
+    const evaluation = JSON.parse(fs.readFileSync(evidenceFile, 'utf8'));
+    assert.equal(evaluation.status, 'completed');
+    assert.equal(evaluation.results.framework, 'DeepEval');
+    assert.equal(evaluation.results.mode, 'deterministic');
+    for (const [name, value] of Object.entries(evaluation.results.metrics)) {
+      const label = name.replaceAll('_', ' ');
+      const card = page.locator('.statCard').filter({ has: page.getByText(label, { exact: true }) });
+      await card.getByText(value == null ? 'Unavailable' : `${(value * 100).toFixed(1)}%`, { exact: true }).waitFor();
+    }
+    if (process.env.LABTWIN_E2E_EVALUATION_EVIDENCE) fs.writeFileSync(process.env.LABTWIN_E2E_EVALUATION_EVIDENCE, JSON.stringify(evaluation, null, 2));
     if (recording) await page.getByRole('heading', { name: 'Personalization across sessions', exact: true }).evaluate(node => node.scrollIntoView({ block: 'start' }));
     await checkpoint('Personalization evidence grows across sessions. Next-answer prediction loss, model uncertainty, difficulty progression and repetition are computed from actual simulated responses. These are controlled experiments, not a human study.');
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, 'Teacher page overflows mobile viewport');

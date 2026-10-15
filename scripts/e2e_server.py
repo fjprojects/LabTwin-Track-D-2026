@@ -18,7 +18,7 @@ sys.path.insert(0, str(ROOT / 'backend'))
 os.environ['DJANGO_SETTINGS_MODULE'] = 'backend.test_settings'
 from django.conf import settings
 settings.DATABASES['default']['NAME'] = os.getenv('LABTWIN_E2E_DATABASE', '/tmp/labtwin-e2e.sqlite3')
-settings.LABTWIN_MEDIA_ROOT = Path('/tmp/labtwin-e2e-uploads')
+settings.LABTWIN_MEDIA_ROOT = Path(os.getenv('LABTWIN_E2E_MEDIA_ROOT', '/tmp/labtwin-e2e-uploads'))
 settings.LABTWIN_VECTOR_ROOT = Path(os.getenv('LABTWIN_E2E_VECTOR_ROOT', '/tmp/labtwin-e2e-vectors-v1.1'))
 settings.PASSWORD_HASHERS = ['django.contrib.auth.hashers.MD5PasswordHasher']
 settings.ALLOWED_HOSTS = ['127.0.0.1', 'localhost']

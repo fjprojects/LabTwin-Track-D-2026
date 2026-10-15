@@ -5,9 +5,8 @@ export function topicPayload(rawName, prerequisite, topics) {
     throw new Error("Enter a topic name of up to 200 characters.");
   }
   const name = rawName.trim();
-  if (topics.some(topic => topic.name === name)) {
-    throw new Error("A topic with this name already exists in this course. Use a different name.");
-  }
+  const duplicate = duplicateTopicMessage(name, topics);
+  if (duplicate) throw new Error(duplicate);
   const prerequisites = [];
   if (prerequisite !== "") {
     const id = Number(prerequisite);
@@ -17,4 +16,12 @@ export function topicPayload(rawName, prerequisite, topics) {
     prerequisites.push(id);
   }
   return { name, prerequisites };
+}
+
+// Warn while typing using the same exact-name rule as the course API.
+export function duplicateTopicMessage(rawName, topics) {
+  const name = typeof rawName === "string" ? rawName.trim() : "";
+  return name && topics.some(topic => topic.name === name)
+    ? "A topic with this name already exists in this course. Use a different name."
+    : "";
 }

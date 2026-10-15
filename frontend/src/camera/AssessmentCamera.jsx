@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CameraCuePolicy, cueInstruction } from "./cuePolicy.js";
+import { CameraSetupError, cameraErrorText, within } from "./setup.js";
 import "./AssessmentCamera.css";
 
 const labels = { calibrating: "Look at the assessment screen for a few seconds to calibrate.", face_visible: "Face visible. Camera cues are active.", face_absent: "Face is not currently visible; lighting or framing may affect detection.", head_turned: "Head position differs from calibration.", paused: "Camera cues paused for a source or reasoning check.", unavailable: "Face position could not be estimated reliably." };
@@ -8,18 +9,19 @@ const isAccessError = error => [401, 403, 404, 410].includes(error.response?.sta
 export default function AssessmentCamera({ policy, question, onEvent, onResponse, checkAccess, externalStream, browserSignals = true }) {
   const [phase, setPhase] = useState("off"), [consent, setConsent] = useState(false), [eyeClosure, setEyeClosure] = useState(false);
   const [status, setStatus] = useState(""), [error, setError] = useState(""), [notice, setNotice] = useState(null), [answer, setAnswer] = useState(""), [saving, setSaving] = useState(false);
+  const [modelState, setModelState] = useState("off"), [calibrationSamples, setCalibrationSamples] = useState(0);
   const video = useRef(null), run = useRef({ epoch: 0 }), mounted = useRef(true), props = useRef(null), emitRef = useRef(null);
   props.current = { policy, question, onEvent, onResponse, checkAccess, externalStream, browserSignals };
 
   const shutdown = useCallback((notify = true, update = true) => {
     const current = run.current;
     run.current = { epoch: current.epoch + 1 };
-    clearInterval(current.timer); clearInterval(current.accessTimer); clearTimeout(current.timeout);
+    clearInterval(current.timer); clearInterval(current.accessTimer); clearTimeout(current.timeout); clearTimeout(current.frameTimeout);
     current.worker?.terminate();
     if (current.owned) current.stream?.getTracks().forEach(track => { track.onended = null; track.stop(); });
     if (video.current) video.current.srcObject = null;
     if (notify && current.started) emitRef.current?.("camera_stopped").catch(() => {});
-    if (mounted.current && update) { setPhase("off"); setStatus(""); }
+    if (mounted.current && update) { setPhase("off"); setStatus(""); setModelState("off"); setCalibrationSamples(0); setNotice(null); }
   }, []);
 
   const emit = useCallback(async (kind, detail = {}) => {
@@ -57,23 +59,28 @@ export default function AssessmentCamera({ policy, question, onEvent, onResponse
   async function start() {
     if (!consent || run.current.pending || run.current.started) return;
     const current = { epoch: run.current.epoch + 1, pending: true, owned: externalStream === undefined, started: false, busy: false, detector: new CameraCuePolicy(policy), lastVideoTime: -1 };
-    run.current = current; setPhase("starting"); setError(""); setNotice(null); setStatus("Requesting camera permission…");
+    run.current = current; setPhase("starting"); setError(""); setNotice(null); setModelState("off"); setCalibrationSamples(0); setStatus("Requesting camera permission…");
     try {
-      if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) throw new Error("Use HTTPS or localhost and a browser with camera support.");
-      if (current.owned) current.stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 15 } } });
+      if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) throw new CameraSetupError("Use HTTPS or localhost and a browser with camera support. Your assessment can continue without camera cues.");
+      if (current.owned) current.stream = await within(navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 15 } } }), 30000,
+        "Camera permission was not completed within 30 seconds. Retry when ready, or continue without camera cues.", stream => stream.getTracks().forEach(track => track.stop()));
       else current.stream = externalStream;
       if (run.current.epoch !== current.epoch) { if (current.owned) current.stream?.getTracks().forEach(track => track.stop()); return; }
-      if (!current.stream?.getVideoTracks().some(track => track.readyState === "live")) throw new Error("Turn on the assessment camera first.");
+      if (!current.stream?.getVideoTracks().some(track => track.readyState === "live")) throw new CameraSetupError("Turn on the assessment camera first, or continue without camera reminders.");
       video.current.srcObject = current.stream;
-      await video.current.play();
-      await emit("camera_started", { consent: true, analysis_enabled: !!policy?.enabled, allow_eye_closure: !!policy?.offer_eye_closure && eyeClosure });
+      setStatus("Opening the local camera preview…");
+      await within(video.current.play(), 10000, "The camera preview did not start. Stop other camera apps and retry if you choose.");
+      if (run.current.epoch !== current.epoch) return;
+      setStatus("Saving your camera consent…");
+      await within(emit("camera_started", { consent: true, analysis_enabled: !!policy?.enabled, allow_eye_closure: !!policy?.offer_eye_closure && eyeClosure }), 15000,
+        "Camera consent could not sync in time. Capture has stopped; reconnect before retrying.", () => emit("camera_stopped").catch(() => {}));
       if (run.current.epoch !== current.epoch) { if (current.owned) current.stream.getTracks().forEach(track => track.stop()); emit("camera_stopped").catch(() => {}); return; }
       current.started = true; current.pending = false;
       if (current.owned) current.stream.getVideoTracks()[0].onended = () => shutdown();
       if (!policy?.enabled) { setPhase("on"); setStatus("Local camera preview. Your teacher has disabled automatic cues."); }
       else {
-        if (!window.Worker || !window.createImageBitmap) throw new Error("This browser cannot run local camera analysis. Try a recent browser.");
-        setStatus("Loading the local camera model…");
+        if (!window.Worker || !window.createImageBitmap) throw new CameraSetupError("This browser cannot run local camera analysis. Try a recent browser or continue without camera cues.");
+        setModelState("loading"); setStatus("Loading the local camera model…");
         // Vite bundles this as a classic worker so MediaPipe can load its WASM
         // helper with importScripts. Inference never blocks answer editing.
         current.worker = new Worker(new URL("./cameraWorker.js", import.meta.url));
@@ -81,14 +88,19 @@ export default function AssessmentCamera({ policy, question, onEvent, onResponse
         current.worker.onerror = () => { if (run.current.epoch === current.epoch) { setError("Camera analysis is unavailable. Your assessment remains available."); emit("camera_analysis_error").catch(() => {}); shutdown(); } };
         current.worker.onmessage = ({ data }) => {
           if (run.current.epoch !== current.epoch) return;
-          if (data.type === "error") { setError(data.message); emit("camera_analysis_error").catch(() => {}); shutdown(); return; }
+          if (data.type === "error") { setError("Local camera analysis could not run. Check the connection and retry if you choose; your assessment remains available."); emit("camera_analysis_error").catch(() => {}); shutdown(); return; }
           if (data.type === "ready") {
-            clearTimeout(current.timeout); setPhase("on"); setStatus(labels.calibrating);
+            clearTimeout(current.timeout); setModelState("ready"); setPhase("on"); setStatus(labels.calibrating);
             current.timer = setInterval(async () => {
               if (document.hidden || current.verificationActive || document.querySelector('[role="dialog"]')) { current.detector.pause(performance.now()); setStatus(labels.paused); return; }
               const element = video.current;
               if (current.busy || !element || element.readyState < 2 || element.currentTime === current.lastVideoTime) return;
               current.busy = true; current.lastVideoTime = element.currentTime;
+              current.frameTimeout = setTimeout(() => {
+                if (run.current.epoch !== current.epoch) return;
+                setError("Local camera analysis stopped responding. Capture has stopped. Retry if you choose; your answers remain available.");
+                emit("camera_analysis_error").catch(() => {}); shutdown();
+              }, 10000);
               try {
                 const frame = await createImageBitmap(element);
                 if (run.current.epoch !== current.epoch) { frame.close(); return; }
@@ -96,10 +108,11 @@ export default function AssessmentCamera({ policy, question, onEvent, onResponse
               } catch { current.busy = false; setError("The camera frame could not be read. Stop and retry the camera."); shutdown(); }
             }, 250);
           } else if (data.type === "sample") {
-            current.busy = false;
+            clearTimeout(current.frameTimeout); current.busy = false;
             if (document.hidden || current.verificationActive || document.querySelector('[role="dialog"]')) { current.detector.pause(performance.now()); setStatus(labels.paused); return; }
             const observation = current.detector.observe(data.pose, data.timestamp);
             setStatus(labels[observation.state] || labels.unavailable);
+            setCalibrationSamples(current.detector.neutral ? 12 : Math.min(11, current.detector.calibration.length));
             if (observation.calibrated) emit("camera_calibrated").catch(() => {});
             if (observation.cue) offerRef.current("camera_cue", observation.cue);
           }
@@ -122,7 +135,7 @@ export default function AssessmentCamera({ policy, question, onEvent, onResponse
     } catch (err) {
       if (run.current.epoch !== current.epoch) return;
       emit(err.name === "NotAllowedError" ? "permission_denied" : "camera_unavailable").catch(() => {});
-      setError(err.name === "NotAllowedError" ? "Camera permission was denied. You can continue the assessment and retry if you choose." : err.response?.data?.error || err.message || "Camera could not start.");
+      setError(cameraErrorText(err));
       shutdown();
     }
   }
@@ -134,7 +147,7 @@ export default function AssessmentCamera({ policy, question, onEvent, onResponse
     return () => { mounted.current = false; shutdown(true, false); window.removeEventListener("labtwin-stop-sharing", stop); window.removeEventListener("pagehide", stop); };
   }, [shutdown]);
   useEffect(() => {
-    if (externalStream !== undefined && run.current.started && externalStream !== run.current.stream) shutdown();
+    if (externalStream !== undefined && (run.current.started || run.current.pending) && externalStream !== run.current.stream) shutdown();
   }, [externalStream, shutdown]);
   useEffect(() => {
     if (phase !== "on" || !browserSignals || !policy?.enabled) return;
@@ -164,11 +177,18 @@ export default function AssessmentCamera({ policy, question, onEvent, onResponse
     <h3>{externalStream === undefined ? "Assessment camera" : "Automatic camera reminders"}</h3>
     <p>{externalStream === undefined ? "Camera frames stay on this device. LabTwin does not record or upload this preview. Only event metadata and explanations you save are visible to your classroom teacher." : "This analyzes your existing shared camera locally. Live camera/microphone sharing remains controlled above; these reminders do not record video."}</p>
     <p className="methodNote">Head position and face visibility cannot establish copying or understanding. Camera cues never change your grade or mastery.</p>
+    <ol className="cameraSetup" aria-label="Camera setup checklist">
+      <li>Use HTTPS and a recent browser with camera support. You can answer without these optional cues.</li>
+      <li>Choose consent below, then allow the browser's camera request. You can revoke consent at any time.</li>
+      <li>Check the live preview. Face the screen in even lighting, with your face comfortably inside the frame.</li>
+      <li>{policy?.enabled ? `Local model: ${modelState === "ready" ? "loaded" : modelState === "loading" ? "loading" : "not running"}. Calibration uses 12 stable samples; it does not identify you.` : "Your teacher has disabled analysis. Only the local preview is available."}</li>
+    </ol>
     <div className="cameraLayout"><video className="cameraPreview" ref={video} muted autoPlay playsInline aria-label="Local assessment camera preview" hidden={phase === "off"} /><div className="cameraChecks">
-      <label><input type="checkbox" checked={consent} disabled={phase !== "off"} onChange={e => setConsent(e.target.checked)} />I agree to the optional local camera {policy?.enabled ? "analysis" : "preview"} and saving event metadata for teacher review.</label>
+      <label><input type="checkbox" checked={consent} onChange={e => { setConsent(e.target.checked); if (!e.target.checked) shutdown(); }} />I agree to the optional local camera {policy?.enabled ? "analysis" : "preview"} and saving event metadata for teacher review.</label>
       {policy?.offer_eye_closure && <label><input type="checkbox" checked={eyeClosure} disabled={phase !== "off"} onChange={e => setEyeClosure(e.target.checked)} />Offer optional eyes-closed, own-words checks. I can keep my eyes open.</label>}
-      <div className="cameraControls">{phase === "off" ? <button type="button" disabled={!consent} onClick={start}>{externalStream === undefined ? "Turn on assessment camera" : "Start camera reminders"}</button> : <><button type="button" className="secondary" onClick={() => shutdown()}>{externalStream === undefined ? "Stop assessment camera" : "Stop camera reminders"}</button>{phase === "on" && policy?.enabled && <button type="button" className="secondary" onClick={() => { run.current.detector?.recalibrate(); setStatus(labels.calibrating); }}>Recalibrate camera</button>}</>}</div>
+      <div className="cameraControls">{phase === "off" ? <button type="button" disabled={!consent} onClick={start}>{error ? "Retry camera setup" : externalStream === undefined ? "Turn on assessment camera" : "Start camera reminders"}</button> : <><button type="button" className="secondary" onClick={() => shutdown()}>{externalStream === undefined ? "Stop assessment camera" : "Stop camera reminders"}</button>{phase === "on" && policy?.enabled && <button type="button" className="secondary" onClick={() => { run.current.detector?.recalibrate(); setCalibrationSamples(0); setStatus(labels.calibrating); }}>Recalibrate camera</button>}</>}</div>
       <p className="cameraLive" role="status">{phase === "starting" ? `Camera starting · ${status}` : phase === "on" ? `Camera on · ${status}` : "Assessment camera analysis is off."}</p>
+      {phase === "on" && policy?.enabled && <label className="cameraCalibration">Calibration: {calibrationSamples}/12 stable samples<progress max="12" value={calibrationSamples} aria-label="Camera calibration" /></label>}
     </div></div>
     {error && <p role="alert">{error}</p>}
     {notice && <aside className="cameraInstruction" aria-label="Camera instruction" aria-live="polite"><strong>Pause and explain your reasoning</strong><p>{notice.instruction}</p><p>{notice.prompt}</p>

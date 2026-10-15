@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import api, { API } from "./api";
+import { visibilityTransition } from "./learning/activityQueue";
 
 export function useAssessmentEvents(attempt, stage) {
   const key = `labtwin_events_${attempt.id}`;
@@ -11,6 +12,7 @@ export function useAssessmentEvents(attempt, stage) {
   const eyeClosureOptIn = useRef(false);
   const [reminder, setReminder] = useState("");
   const [logError, setLogError] = useState("");
+  const [clipboardNotice, setClipboardNotice] = useState("");
   currentStage.current = stage;
 
   const persist = useCallback(() => {
@@ -55,17 +57,21 @@ export function useAssessmentEvents(attempt, stage) {
       return;
     }
     try { queue.current = JSON.parse(sessionStorage.getItem(key) || "[]"); } catch { queue.current = []; }
+    let hidden = document.hidden;
+    let focused = document.hasFocus();
     const visibility = () => {
-      if (document.hidden) { awayAt.current = Date.now(); log("page_hidden"); }
-      else { log("page_return", { duration_ms: awayAt.current ? Date.now() - awayAt.current : 0 }); awayAt.current = null; flush(); }
+      const previousHidden = hidden, next = visibilityTransition(hidden, document.hidden); hidden = next.hidden;
+      if (next.departed) { awayAt.current = Date.now(); log("page_hidden"); }
+      else if (previousHidden && !hidden) { log("page_return", { duration_ms: awayAt.current ? Date.now() - awayAt.current : 0 }); awayAt.current = null; flush(); }
     };
-    const blur = () => log("window_blur");
-    const focus = () => log("window_focus");
+    const blur = () => { if (focused) { focused = false; log("window_blur"); } };
+    const focus = () => { if (!focused) { focused = true; log("window_focus"); } };
     const clipboard = event => {
       const field = event.target?.closest?.("[data-assessment-field]")?.dataset.assessmentField;
       if (!field) return;
       const blocked = event.type === "paste" && !attempt.assignment.allow_paste;
-      if (blocked) event.preventDefault();
+      if (blocked) { event.preventDefault(); setClipboardNotice("Paste was blocked in this answer field by your teacher's assignment setting. You can type, copy and edit your answer normally; ask your teacher if you need an accommodation."); }
+      else setClipboardNotice("");
       log(blocked ? "paste_blocked" : event.type, {
         field, characters: event.type === "paste" ? (event.clipboardData?.getData("text") || "").length : 0,
       });
@@ -90,5 +96,5 @@ export function useAssessmentEvents(attempt, stage) {
       ["copy", "cut", "paste"].forEach(type => document.removeEventListener(type, clipboard, true));
     };
   }, [attempt.id, attempt.status, attempt.assignment.allow_paste, key, log, flush, persist]);
-  return { log, flush, reminder, setReminder, logError };
+  return { log, flush, reminder, setReminder, logError, clipboardNotice };
 }

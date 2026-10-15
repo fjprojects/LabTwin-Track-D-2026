@@ -3,12 +3,12 @@ import uuid
 from django.db import IntegrityError, transaction
 from django.http import JsonResponse
 
-from ..models import PracticeQuestion, PracticeAttempt, QuestionBankItem, AssignmentAttempt, LearningEvidence, MasterySnapshot, VivaSession, VivaTurn
+from ..models import AssessmentSession, PracticeQuestion, PracticeAttempt, QuestionBankItem, AssignmentAttempt, LearningEvidence, MasterySnapshot, VivaSession, VivaTurn
 from ..assessment_views import attempt_access
 from .access import endpoint, payload, LearningError, authorized_courses, course_for, topic_for, student_for, require_student, validate_sources
 from .coaching import make_hint, conceptual_mistake
 from .mastery import learning_path, mastery_data, resources, record_evidence
-from .practice import generate_question, question_data, safe_test_results, grade, validate_bank
+from .practice import generate_question, question_data, practice_attempt_data, grade, validate_bank
 from .viva import next_turn, evaluate_turn, session_data
 
 
@@ -70,10 +70,6 @@ def practice(request, course_id):
     return JsonResponse({"question": question_data(generate_question(request.account.student, course, topic, kind))}, status=201)
 
 
-def practice_attempt_data(attempt):
-    return {"id": attempt.id, "status": attempt.status, "score": attempt.score, "code": attempt.code, "answer": attempt.answer, "test_results": safe_test_results(attempt.test_results), "error": attempt.error, "mistake": attempt.misconception, "hint_level": attempt.hint_level, "feedback": attempt.feedback}
-
-
 @endpoint(["GET", "POST"])
 def practice_attempts(request, question_id):
     require_student(request.account)
@@ -93,7 +89,19 @@ def practice_attempts(request, question_id):
         # Serialize request IDs on the question; duplicate network retries never
         # execute code twice or create duplicate mastery evidence.
         PracticeQuestion.objects.select_for_update().get(pk=question.pk)
-        attempt, created = PracticeAttempt.objects.get_or_create(question=question, request_id=request_id, defaults={"code": code, "answer": str(answer), "hint_level": question.hints.order_by("-level").values_list("level", flat=True).first() or 0})
+        attempt = question.attempts.filter(request_id=request_id).first()
+        created = attempt is None
+        if attempt and (attempt.code != code or attempt.answer != str(answer)):
+            raise LearningError("This request ID already saved a different response. Refresh to review your saved work.", 409)
+        if created:
+            if question.assessment_id:
+                assessment = AssessmentSession.objects.select_for_update().get(pk=question.assessment_id)
+                if assessment.status != "in_progress":
+                    raise LearningError("This assessment has finished. Open the saved assessment to review your answers.", 409)
+                if question.attempts.exclude(status="failed").exists():
+                    raise LearningError("This assessment answer is already saved or processing. Refresh its status before continuing.", 409)
+            attempt = PracticeAttempt.objects.create(question=question, request_id=request_id, code=code, answer=str(answer),
+                hint_level=question.hints.order_by("-level").values_list("level", flat=True).first() or 0)
     if not created:
         return JsonResponse({"attempt": practice_attempt_data(attempt)})
     try:

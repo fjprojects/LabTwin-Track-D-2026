@@ -1,4 +1,5 @@
-.classroomPortal { width: 100%; max-width: 1200px; min-width: 0; box-sizing: border-box; margin: 32px auto; padding: 24px; color: #182b40; font-family: inherit; text-align: left; }
+/* These panels stay light even when the operating system prefers dark mode. */
+.classroomPortal { --text-h: #182b40; color-scheme: light; width: 100%; max-width: 1200px; min-width: 0; box-sizing: border-box; margin: 32px auto; padding: 24px; color: #182b40; font-family: inherit; text-align: left; }
 .classroomPortal.authCard { max-width: 520px; background: #fff; border-radius: 20px; box-shadow: 0 12px 48px #16365b18; }
 .classroomPortal .eyebrow { color: #28615c; letter-spacing: .12em; font-size: 12px; font-weight: 800; }
 .classroomPortal h1 { font-size: clamp(24px, 4vw, 36px); line-height: 1.2; }

@@ -6,7 +6,7 @@ from ..models import AssessmentSession, TopicMastery, PracticeAttempt
 from .access import LearningError
 from .mastery import mastery_data
 from .novelty import repetition_rate
-from .practice import generate_question, question_data
+from .practice import generate_question, question_data, practice_attempt_data
 from .vectors import embedding_backend
 
 
@@ -82,12 +82,25 @@ def create_session(student, course, data):
 
 def session_data(session):
     from .camera import camera_policy, camera_summary
+    questions = list(session.questions.select_related("topic__course").prefetch_related("attempts").order_by("id"))
+    attempts = []
+    for question in questions:
+        history = list(question.attempts.all())
+        latest = max((a for a in history if a.status != "failed"), key=lambda a: a.pk, default=None)
+        latest = latest or max(history, key=lambda a: a.pk, default=None)
+        if latest:
+            attempts.append(practice_attempt_data(latest))
     return {"id": session.id, "kind": session.kind, "scope": session.scope, "status": session.status,
-            "created_at": session.created_at.isoformat(), "camera_policy": camera_policy(session.course), "camera_summary": camera_summary(session), "questions": [question_data(q) for q in session.questions.select_related("topic__course").order_by("id")],
+            "created_at": session.created_at.isoformat(), "completed_at": session.completed_at.isoformat() if session.completed_at else None,
+            "camera_policy": camera_policy(session.course), "camera_summary": camera_summary(session),
+            "questions": [question_data(q) for q in questions], "attempts": attempts,
             "report": session.report if session.status == "completed" else {"generation_notes": session.report.get("generation_notes", [])}}
 
 
+@transaction.atomic
 def assessment_report(session):
+    locked = type(session).objects.select_for_update().get(pk=session.pk)
+    session.report, session.completed_at = locked.report, locked.completed_at
     questions = list(session.questions.select_related("topic__course").order_by("id"))
     attempts = [q.attempts.exclude(status="failed").order_by("-id").first() for q in questions]
     scored = [a for a in attempts if a and a.status == "completed" and a.score is not None]
@@ -107,7 +120,7 @@ def assessment_report(session):
         "interpretation": "Mastery is a model estimate from scored evidence; a percentage gain is not proof of a causal learning effect."}
     complete = all(a and a.status in ("completed", "pending_review") for a in attempts)
     session.status = "completed" if complete else "in_progress"
-    session.completed_at = timezone.now() if complete else None
+    session.completed_at = (session.completed_at or timezone.now()) if complete else None
     session.report = report
     session.save(update_fields=["status", "completed_at", "report"])
     return report

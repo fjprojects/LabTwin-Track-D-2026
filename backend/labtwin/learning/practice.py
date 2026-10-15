@@ -77,6 +77,14 @@ def safe_test_results(results):
     return [{"test": i + 1, "passed": bool(row.get("passed")), "success": bool(row.get("success", True))} for i, row in enumerate(results)]
 
 
+def practice_attempt_data(attempt):
+    """Owned submitted work and feedback, never hidden answer keys or tests."""
+    return {"id": attempt.id, "question_id": attempt.question_id, "request_id": attempt.request_id,
+            "status": attempt.status, "score": attempt.score, "code": attempt.code, "answer": attempt.answer,
+            "test_results": safe_test_results(attempt.test_results), "error": attempt.error,
+            "mistake": attempt.misconception, "hint_level": attempt.hint_level, "feedback": attempt.feedback}
+
+
 def grade(question, code, answer):
     if question.kind == "code":
         if not code.strip():

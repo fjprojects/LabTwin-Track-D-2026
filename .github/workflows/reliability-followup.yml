@@ -1,0 +1,83 @@
+name: LabTwin reliability follow-up
+
+on:
+  push:
+    branches: [fix/reliability-followup-20261015]
+    paths: ['backend/**', 'frontend/**', 'deployment/**', 'scripts/**', '.github/workflows/reliability-followup.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PYTHONPATH: .:backend
+      LITELLM_LOCAL_MODEL_COST_MAP: 'True'
+      LABTWIN_DISABLE_REMOTE_AI: 'true'
+      LABTWIN_EMBEDDING_BACKEND: hash
+      ANONYMIZED_TELEMETRY: 'False'
+      NODE_PATH: /tmp/labtwin-browser/node_modules
+      LABTWIN_UI_SCREENSHOTS: /tmp/labtwin-release-screenshots
+      LABTWIN_CAMERA_TEST_VIDEO: /tmp/labtwin-camera-test.y4m
+      LABTWIN_E2E_EVALUATION_EVIDENCE: /tmp/labtwin-release-evaluation.json
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Native ingestion tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg poppler-utils tesseract-ocr
+      - name: Tested application and isolated evaluation runtimes
+        run: |
+          python -m pip install -r requirements-render.txt
+          python -m venv .venv-evaluation
+          .venv-evaluation/bin/python -m pip install -r requirements-evaluation.txt
+          echo "LABTWIN_TEST_EVALUATOR_PYTHON=$GITHUB_WORKSPACE/.venv-evaluation/bin/python" >> "$GITHUB_ENV"
+      - name: Complete backend, private-media, migration and native-runner checks
+        run: |
+          python backend/manage.py test labtwin --settings=backend.test_settings --noinput
+          python scripts/check_deployment.py
+          python scripts/check_fresh_migrations.py
+          python scripts/check_programming_runners.py --require-all
+      - name: Frontend checks
+        working-directory: frontend
+        env:
+          VITE_API_URL: /api
+        run: |
+          npm ci
+          node --test src/camera/*.test.js src/api.test.js src/auth/*.test.js src/learning/*.test.js
+          npm run lint
+          npm run build
+      - name: Isolated browser runtime and public camera fixture
+        run: |
+          npm install --prefix /tmp/labtwin-browser --no-save --package-lock=false playwright
+          /tmp/labtwin-browser/node_modules/.bin/playwright install --with-deps chromium
+          python -m pip install matplotlib
+          python scripts/create_camera_fixture.py "$LABTWIN_CAMERA_TEST_VIDEO"
+      - name: Source, dashboards, clipboard, activity and actual camera model
+        run: |
+          node scripts/run_browser_checks.cjs scripts/e2e_topics.cjs scripts/e2e_ui.cjs scripts/e2e_activity.cjs scripts/e2e_recovery.cjs scripts/e2e_assessment_camera.cjs scripts/e2e_learning.cjs
+      - name: Preserve synthetic screenshots and measured evaluation
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reliability-followup-evidence
+          path: |
+            /tmp/labtwin-release-screenshots
+            /tmp/labtwin-release-evaluation.json
+          if-no-files-found: ignore
+          retention-days: 7
